@@ -11,7 +11,7 @@ Alert_Handling *Alert_Handling::_instance;
 Alert_Handling &Alert_Handling::instance() {
   if (!_instance) {
       _instance = new Alert_Handling();
-  }
+  } 
   return *_instance;
 }
 
