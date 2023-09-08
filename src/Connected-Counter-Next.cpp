@@ -37,7 +37,7 @@ PRODUCT_VERSION(1);									// For now, we are putting nodes and gateways in the
 // Prototype functions
 void publishStateTransition(void);                  // Keeps track of state machine changes - for debugging
 void userSwitchISR();                               // interrupt service routime for the user switch
-void sensorISR();
+void sensorISR(); 
 void countSignalTimerISR();							// Keeps the Blue LED on
 void UbidotsHandler(const char *event, const char *data);
 bool isParkOpen(bool verbose);						// Simple function returns whether park is open or not
