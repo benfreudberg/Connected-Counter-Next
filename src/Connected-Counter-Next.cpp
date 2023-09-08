@@ -477,11 +477,11 @@ inline void softDelay(uint32_t t) {
 inline String retrieveAssetFirmwareVersion() {
   switch(sysStatus.get_sensorType()) {
     case 0: {                                                /*** Pressure Sensor ***/
-		// Retrieve or set ASSET_FIRMWARE_VERSION here
+		// set or retrieve pressure sensor's firmware version here
 		return "0.0";
     } break;
     case 1:	{												 /*** PIR Sensor ***/
-		// Retrieve or set ASSET_FIRMWARE_VERSION here
+		// set or retrieve PIR sensor's firmware version here
 		return "0.0";
 	} break;
     case 2: {												 /*** Magnetometer Sensor ***/
@@ -491,12 +491,12 @@ inline String retrieveAssetFirmwareVersion() {
 	  while (Serial.available() == 0) {}     				 // Wait for data available
 	  String version = Serial.readString();  				 // Read until timeout
 	  version.trim();                        				 // Remove \r, \n, whitespace
-	  Serial1.end();								     // Close serial connection
+	  Serial1.end();								         // Close serial connection
 	  delay(1000);  								  		 // Make sure the serial monitor can disconnect
 	  return version;
     }
     case 3: {												 /*** Accelerometer Sensor ***/
-      	// Retrieve or set ASSET_FIRMWARE_VERSION here 
+      	// set or retrieve accelerometer sensor's firmware version here 
 	  return "0.0";
     } break;
     default:

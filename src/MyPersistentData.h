@@ -339,7 +339,7 @@ public:
 	uint8_t get_batteryState() const;
 	void set_batteryState(uint8_t value);
 
-		//Members here are internal only and therefore protected
+	// Members here are internal only and therefore protected
 protected:
     /**
      * @brief The constructor is protected because the class is a singleton

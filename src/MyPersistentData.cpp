@@ -241,19 +241,19 @@ void currentStatusData::loop() {
     current.flush(false);
 }
 
-void currentStatusData::resetEverything() {                             // The device is waking up in a new day or is a new install
+void currentStatusData::resetEverything() {          // The device is waking up in a new day or is a new install
   current.set_lastCountTime(Time.now());
-  sysStatus.set_resetCount(0);                                          // Reset the reset count as well
+  sysStatus.set_resetCount(0);                       // Reset the reset count as well
   current.set_hourlyCount(0);
   current.set_dailyCount(0);
   current.set_alertCode(0);
 }
 
 
-bool currentStatusData::validate(size_t dataSize) {
+bool currentStatusData::validate(size_t dataSize) {  // This needs to be fleshed out
     return true;
 
-};                      // This needs to be fleshed out
+};                      
 
 void currentStatusData::initialize() {
     PersistentDataFile::initialize();
@@ -262,8 +262,7 @@ void currentStatusData::initialize() {
 
     currentStatusData::resetEverything();
 
-    // If you manually update fields here, be sure to update the hash
-    updateHash();
+    updateHash();                                    // If you manually update fields here, be sure to update the hash
 }
 
 uint16_t currentStatusData::get_hourlyCount() const {
