@@ -48,7 +48,7 @@ bool Record_Counts::recordCounts() // This is where we check to see if an interr
       doesItCount = true;                                    // PIR Sensor - count all
       break;
     case 2: {
-      if(Time.now() > (current.get_lastCountTime() + (time_t)sysStatus.get_delay())){ // Magnetometer Sensor - count if not within [delay] seconds of last count
+      if(Time.now() > (current.get_lastCountTime() + (time_t)(sysStatus.get_delay()/1000))){ // Magnetometer Sensor - count if not within [delay] seconds of last count
           doesItCount = true;
       } else {
           doesItCount = false;                        

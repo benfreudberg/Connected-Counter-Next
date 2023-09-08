@@ -88,8 +88,9 @@ public:
 		time_t lastHookResponse;                   		  // Last time we got a valid Webhook response
 		uint16_t lastConnectionDuration;                  // How long - in seconds - did it take to last connect to the Particle cloud
 		uint8_t sensorType;                               // What is the sensor type - 0-Pressure Sensor, 1-PIR Sensor
-		float firmwareRelease;							  // Point release - helpful in development
-		uint8_t delay;                                    // Delay setting for safely pausing between counts
+		String firmwareRelease;							  // Point release - helpful in development
+		String assetFirmwareRelease;					  // Asset's point release - helpful in development
+		uint16_t delay;                                   // Delay setting for safely halting publishes for a set amount of time (milliseconds)
 	};
 
 	SysData sysData;
@@ -163,11 +164,14 @@ public:
 	uint8_t get_sensorType() const;
 	void set_sensorType(uint8_t value);
 
-	float get_firmwareRelease() const;
-	void set_firmwareRelease(float value);
+	String get_firmwareRelease() const;
+	void set_firmwareRelease(String value);
 
-	uint8_t get_delay() const;
-	void set_delay(uint8_t value);
+	String get_assetFirmwareRelease() const;
+	void set_assetFirmwareRelease(String value);
+
+	uint16_t get_delay() const;
+	void set_delay(uint16_t value);
 
 	//Members here are internal only and therefore protected
 protected:

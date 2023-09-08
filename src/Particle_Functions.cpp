@@ -127,7 +127,7 @@ int Particle_Functions::jsonFunctionParser(String command) {
       Particle.publish("status",data,PRIVATE);
       if (variable == "long") {
         conv.withCurrentTime().convert();  	
-        snprintf(data,sizeof(data),"Time: %s, open: %d, close: %d, mode %s, release %4.2f", conv.format("%I:%M:%S%p").c_str(), sysStatus.get_openTime(), sysStatus.get_closeTime(), (sysStatus.get_lowPowerMode()) ? "low power":"not low power", sysStatus.get_firmwareRelease());
+        snprintf(data,sizeof(data),"Time: %s, open: %d, close: %d, mode %s, release %s, asset release %s", conv.format("%I:%M:%S%p").c_str(), sysStatus.get_openTime(), sysStatus.get_closeTime(), (sysStatus.get_lowPowerMode()) ? "low power":"not low power", sysStatus.get_firmwareRelease(), sysStatus.get_assetFirmwareRelease());
         Log.info(data);
         Particle.publish("status",data,PRIVATE);
       }
@@ -218,13 +218,27 @@ int Particle_Functions::jsonFunctionParser(String command) {
       // Format - function - delay, node - nodeNumber, variables - delay (int) in milliseconds. Maximum value 100000
       // Test - {"cmd":[{"var":"2000","fn":"delay"}]}
       int tempValue = strtol(variable,&pEND,10);                       // Looks for the first integer and interprets it
-      if ((tempValue >= 0 ) && (tempValue <= 100)) {
-        snprintf(messaging,sizeof(messaging),"Setting sensor delay to %d seconds", tempValue);
+      if ((tempValue >= 0 ) && (tempValue <= 10000)) {
+        snprintf(messaging,sizeof(messaging),"Setting sensor delay to %d milliseconds", tempValue);
         sysStatus.set_delay(tempValue);
       }
       else {
-        snprintf(messaging,sizeof(messaging),"Delay length out of range (0-100)");
+        snprintf(messaging,sizeof(messaging),"Delay length out of range (0-10000)");
         success = false;                                                       // Make sure it falls in a valid range or send a "fail" result
+      }
+    }
+
+    // turn on verbose mode
+    else if (function == "verbose") {
+      // Format - function - rpt, variables - true or false
+      // Test - {"cmd":[{"var":"true","fn":"verbose"}]}
+      if (variable == "true") {
+        snprintf(messaging,sizeof(messaging),"Verbose mode activated");
+        sysStatus.set_verboseMode(true);
+      }
+      else {
+        snprintf(messaging,sizeof(messaging),"Verbose mode deactivated");
+        sysStatus.set_verboseMode(false);
       }
     }
 
