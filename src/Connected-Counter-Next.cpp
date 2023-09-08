@@ -16,6 +16,7 @@
 // v0.8 - Need to figure out why we are getting stuck after ~24 hours.  Need to report firmware release with "long".  Added Resetart functions and Implemented delay setting and delay configuration particle function
 // v0.9 - Merged Code from Alex and Chip - made some tweaks but not sure I have fixed the issue.
 // v1.0 - Fixed the infinite flashing green error - issue was in the Alert Handline Switch / Case
+// v1.1 - Updated the pinMode and code for handling the user switch
 
 
 // Particle Libraries
@@ -31,7 +32,7 @@
 #include "Alert_Handling.h"
 #include "Record_Counts.h"
 
-#define FIRMWARE_RELEASE 1.0						// Will update this and report with stats
+#define FIRMWARE_RELEASE 1.1						// Will update this and report with stats
 PRODUCT_VERSION(1);									// For now, we are putting nodes and gateways in the same product group - need to deconflict #
 
 // Prototype functions
@@ -139,7 +140,7 @@ void setup() {
 		}
 	} 
 
-	attachInterrupt(BUTTON_PIN,userSwitchISR,CHANGE); // We may need to monitor the user switch to change behaviours / modes
+	attachInterrupt(BUTTON_PIN,userSwitchISR,FALLING); // We may need to monitor the user switch to change behaviours / modes
 	attachInterrupt(INT_PIN,sensorISR,RISING);      // We need to monitor the sensor for activity
 
 
@@ -364,6 +365,13 @@ void loop() {
 		}
 		else Log.info("Count not recorded");
 	}		
+
+	if (userSwitchDectected) {							// If the user switch has been pressed, we need to reset the device
+		userSwitchDectected = false;
+		// digitalWrite(ENABLE_PIN, !digitalRead(ENABLE_PIN));						// Toggle the enable pin
+		// Log.info("User switch pressed and Enable pin is now %s", (digitalRead(ENABLE_PIN)) ? "HIGH" : "LOW");
+		// delay(1000);	// Give the system a second to get the message out
+	}
 }
 
 /**

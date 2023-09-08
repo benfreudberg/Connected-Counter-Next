@@ -52,7 +52,7 @@ const pin_t DTR_PIN = D11;                               // Not used for this sk
 bool initializePinModes() {
     Log.info("Initalizing the pinModes");
     // Define as inputs or outputs
-    pinMode(BUTTON_PIN,INPUT_PULLUP);               // User button on the carrier board - active LOW
+    pinMode(BUTTON_PIN,INPUT);               // User button on the carrier board - active LOW
     pinMode(WAKEUP_PIN,INPUT);                      // This pin is active HIGH
     pinMode(BLUE_LED,OUTPUT);                       // On the Boron itself
     pinMode(INT_PIN, INPUT);                        // Interrupt pin for the Magnetometer
