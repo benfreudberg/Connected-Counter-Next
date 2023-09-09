@@ -43,15 +43,11 @@ bool Record_Counts::recordCounts()                        // This is where we ch
         frontTire = false;                                // And then set the flag to true so we count the front tire next time
       }
     } break;
-    case 1:                                               /*** PIR Sensor - count all ***/
+    case 1: {                                             /*** PIR Sensor - count all ***/
       doesItCount = true;
-      break;
-    case 2: {                                             /*** Magnetometer Sensor - count if not within [delay] seconds of last count ***/
-      if(Time.now() > (current.get_lastCountTime() + (time_t)(sysStatus.get_delay()/1000))){ 
-          doesItCount = true;
-      } else {
-          doesItCount = false;                        
-      }                                    
+    }break;
+    case 2: {                                             /*** Magnetometer Sensor - count all interrupts ***/
+      doesItCount = true;                                                          
     } break;
     case 3: {
       doesItCount = true;                                 /*** Accelerometer Sensor - count all ***/

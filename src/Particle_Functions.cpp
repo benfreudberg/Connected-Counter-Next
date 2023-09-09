@@ -127,7 +127,7 @@ int Particle_Functions::jsonFunctionParser(String command) {
       Particle.publish("status",data,PRIVATE);
       if (variable == "long") {
         conv.withCurrentTime().convert();  	
-        snprintf(data,sizeof(data),"Time: %s, open: %d, close: %d, mode %s, release %s, asset release %s", conv.format("%I:%M:%S%p").c_str(), sysStatus.get_openTime(), sysStatus.get_closeTime(), (sysStatus.get_lowPowerMode()) ? "low power":"not low power", sysStatus.get_firmwareRelease(), sysStatus.get_assetFirmwareRelease());
+        snprintf(data,sizeof(data),"Time: %s, open: %d, close: %d, mode %s, release %s, asset release %s", conv.format("%I:%M:%S%p").c_str(), sysStatus.get_openTime(), sysStatus.get_closeTime(), (sysStatus.get_lowPowerMode()) ? "low power":"not low power", sysStatus.get_firmwareRelease().c_str(), sysStatus.get_assetFirmwareRelease().c_str());
         Log.info(data);
         Particle.publish("status",data,PRIVATE);
       }
@@ -209,21 +209,6 @@ int Particle_Functions::jsonFunctionParser(String command) {
       }
       else {
         snprintf(messaging,sizeof(messaging),"Sensor number out of range (0-3)");
-        success = false;                                                       // Make sure it falls in a valid range or send a "fail" result
-      }
-    }
-
-    // Setting the delay between counts
-    else if (function == "delay") {
-      // Format - function - delay, node - nodeNumber, variables - delay (int) in milliseconds. Maximum value 100000
-      // Test - {"cmd":[{"var":"2000","fn":"delay"}]}
-      int tempValue = strtol(variable,&pEND,10);                       // Looks for the first integer and interprets it
-      if ((tempValue >= 0 ) && (tempValue <= 10000)) {
-        snprintf(messaging,sizeof(messaging),"Setting sensor delay to %d milliseconds", tempValue);
-        sysStatus.set_delay(tempValue);
-      }
-      else {
-        snprintf(messaging,sizeof(messaging),"Delay length out of range (0-10000)");
         success = false;                                                       // Make sure it falls in a valid range or send a "fail" result
       }
     }

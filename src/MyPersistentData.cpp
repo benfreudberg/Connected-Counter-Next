@@ -73,7 +73,6 @@ void sysStatusData::initialize() {
     sysStatus.set_openTime(0);
     sysStatus.set_closeTime(24);                // New standard with v20
     sysStatus.set_lastConnectionDuration(0);    // New measure
-    sysStatus.set_delay(2500);                  // delay(seconds) for pausing detections from Magnetometer interrupt line, default 2s
 }
 
 uint8_t sysStatusData::get_structuresVersion() const {
@@ -198,14 +197,6 @@ String sysStatusData::get_assetFirmwareRelease() const {
 
 void sysStatusData::set_assetFirmwareRelease(String value) {
     setValueString(offsetof(SysData, assetFirmwareRelease), sizeof(value), value);
-}
-
-uint16_t sysStatusData::get_delay() const  {
-    return getValue<uint16_t>(offsetof(SysData,delay));
-}
-
-void sysStatusData::set_delay(uint16_t value) {
-    setValue<uint16_t>(offsetof(SysData, delay), value);
 }
 
 // *****************  Current Status Storage Object *******************

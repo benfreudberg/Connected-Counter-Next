@@ -7,7 +7,7 @@
 //Define external class instances. These are typically declared public in the main .CPP. I wonder if we can only declare it here?
 // extern MB85RC64 fram;
 
-//Macros(#define) to swap out during pre-processing (use sparingly). This is typically used outside of this .H and .CPP file within the main .CPP file or other .CPP files that reference this header file. 
+// Macros(#define) to swap out during pre-processing (use sparingly). This is typically used outside of this .H and .CPP file within the main .CPP file or other .CPP files that reference this header file. 
 // This way you can do "data.setup()" instead of "MyPersistentData::instance().setup()" as an example
 #define current currentStatusData::instance()
 #define sysStatus sysStatusData::instance()
@@ -90,7 +90,6 @@ public:
 		uint8_t sensorType;                               // What is the sensor type - 0-Pressure Sensor, 1-PIR Sensor
 		String firmwareRelease;							  // Point release - helpful in development
 		String assetFirmwareRelease;					  // Asset's point release - helpful in development
-		uint16_t delay;                                   // Delay setting for safely halting publishes for a set amount of time (milliseconds)
 	};
 
 	SysData sysData;
@@ -169,9 +168,6 @@ public:
 
 	String get_assetFirmwareRelease() const;
 	void set_assetFirmwareRelease(String value);
-
-	uint16_t get_delay() const;
-	void set_delay(uint16_t value);
 
 	//Members here are internal only and therefore protected
 protected:

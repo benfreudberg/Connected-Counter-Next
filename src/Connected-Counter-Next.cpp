@@ -18,7 +18,7 @@
 // v1.0 - Fixed the infinite flashing green error - issue was in the Alert Handline Switch / Case
 // v1.1 - Updated the pinMode and code for handling the user switch
 // v1.2 - Delay now in milliseconds. Added "retrieveAssetFirmwareVersion" to setup(), now able to configure printing various assets' firmware versions using the "status"="long" Particle function.
-
+// v1.2.1 - Moved all interrupt functionality to Magnetometer instead, removed delay
 
 // Particle Libraries
 #include "Particle.h"                                 // Because it is a CPP file not INO
@@ -33,7 +33,7 @@
 #include "Alert_Handling.h"
 #include "Record_Counts.h"
 
-#define FIRMWARE_RELEASE "1.1"						  // Will update this and report with stats
+#define FIRMWARE_RELEASE "1.2"						  // Will update this and report with stats
 
 PRODUCT_VERSION(1);									  // For now, we are putting nodes and gateways in the same product group - need to deconflict #
 
@@ -487,10 +487,8 @@ inline String retrieveAssetFirmwareVersion() {
     case 2: {												 /*** Magnetometer Sensor ***/
 	  Serial1.begin(115200);								 // Open serial connection
 	  delay(1000);  								  		 // Make sure the serial monitor can connect
-	  Serial1.printlnf("*VER?");							 // Query magnetometer for its version
-	  while (Serial.available() == 0) {}     				 // Wait for data available
+	  Serial1.print("*VER?");							     // Query magnetometer for its version
 	  String version = Serial.readString();  				 // Read until timeout
-	  version.trim();                        				 // Remove \r, \n, whitespace
 	  Serial1.end();								         // Close serial connection
 	  delay(1000);  								  		 // Make sure the serial monitor can disconnect
 	  return version;
