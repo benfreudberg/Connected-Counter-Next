@@ -19,6 +19,7 @@
 // v1.1 - Updated the pinMode and code for handling the user switch
 // v1.2 - Delay now in milliseconds. Added "retrieveAssetFirmwareVersion" to setup(), now able to configure printing various assets' firmware versions using the "status"="long" Particle function.
 // v1.2.1 - Moved all interrupt functionality to Magnetometer instead, removed delay
+// v1.3 - Fixed issue with AlertHandline for AlertCode 31
 
 // Particle Libraries
 #include "Particle.h"                                 // Because it is a CPP file not INO
@@ -33,7 +34,7 @@
 #include "Alert_Handling.h"
 #include "Record_Counts.h"
 
-#define FIRMWARE_RELEASE "1.2"						  // Will update this and report with stats
+#define FIRMWARE_RELEASE "1.3"						  // Will update this and report with stats
 
 PRODUCT_VERSION(1);									  // For now, we are putting nodes and gateways in the same product group - need to deconflict #
 
