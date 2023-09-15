@@ -6,7 +6,7 @@
 #include "math.h"
 #include "Take_Measurements.h"
 
-FuelGauge fuelGauge;                                // Needed to address issue with updates in low battery state
+FuelGauge fuelGauge;                                             // Needed to address issue with updates in low battery state
 
 Take_Measurements *Take_Measurements::_instance;
 
@@ -33,7 +33,7 @@ void Take_Measurements::loop() {
 
 bool Take_Measurements::takeMeasurements() { 
 
-		fuelGauge.wakeup();                                                // Make sure the fuelGauge is woke
+		fuelGauge.wakeup();                                          // Make sure the fuelGauge is woke
     delay(500);
 
     if (!batteryState()) sysStatus.set_lowPowerMode(true);
@@ -69,8 +69,8 @@ bool Take_Measurements::takeMeasurements() {
 
 bool Take_Measurements::batteryState() {
 
-  current.set_batteryState(System.batteryState());                      // Call before isItSafeToCharge() as it may overwrite the context
-  current.set_stateOfCharge(fuelGauge.getSoC());                   // Assign to system value
+  current.set_batteryState(System.batteryState());               // Call before isItSafeToCharge() as it may overwrite the context
+  current.set_stateOfCharge(fuelGauge.getSoC());                 // Assign to system value
   Log.info("Battery state of charge %4.2f%%",current.get_stateOfCharge());
 
   if (current.get_stateOfCharge() > 60 || current.get_stateOfCharge() == -1 ) return true;  // Bad battery reading should not put device in low power mode
@@ -78,17 +78,17 @@ bool Take_Measurements::batteryState() {
 }
 
 
-bool Take_Measurements::isItSafeToCharge()                             // Returns a true or false if the battery is in a safe charging range.
+bool Take_Measurements::isItSafeToCharge()                       // Returns a true or false if the battery is in a safe charging range.
 {
   PMIC pmic(true);
   if (current.get_internalTempC() < 0 || current.get_internalTempC() > 37 )  {  // Reference: (32 to 113 but with safety)
-    pmic.disableCharging();                                             // It is too cold or too hot to safely charge the battery
-    current.set_batteryState(1);                                        // Overwrites the values from the batteryState API to reflect that we are "Not Charging"
-    current.set_alertCode(10);                                          // Alert for no charging
+    pmic.disableCharging();                                      // It is too cold or too hot to safely charge the battery
+    current.set_batteryState(1);                                 // Overwrites the values from the batteryState API to reflect that we are "Not Charging"
+    current.set_alertCode(10);                                   // Alert for no charging
     return false;
   }
   else {
-    pmic.enableCharging();                          // It is safe to charge the battery
+    pmic.enableCharging();                                       // It is safe to charge the battery
     return true;
   }
 }
@@ -112,13 +112,13 @@ void Take_Measurements::getSignalStrength() {
   Log.info(signalStr);
 }
 
-float Take_Measurements::getTemperature(int reading) {                                     // Get temperature and make sure we are not getting a spurrious value
+float Take_Measurements::getTemperature(int reading) {           // Get temperature and make sure we are not getting a spurrious value
 
-  if ((reading < 0) || (reading > 2048)) {                              // This corresponds to -50 degrees to boiling - outside this range we have an error
+  if ((reading < 0) || (reading > 2048)) {                       // This corresponds to -50 degrees to boiling - outside this range we have an error
     return -255;
   }
 
-  float voltage = reading * 3.3;                                      // converting that reading to voltage, for 3.3v arduino use 3.3
-  voltage /= 4096.0;                                                  // Electron is different than the Arduino where there are only 1024 steps
-  return ((voltage - 0.5) * 100.0);                    //converting from 10 mv per degree with 500 mV offset to degrees ((voltage - 500mV) times 100) - 5 degree calibration
+  float voltage = reading * 3.3;                                 // converting that reading to voltage, for 3.3v arduino use 3.3
+  voltage /= 4096.0;                                             // Electron is different than the Arduino where there are only 1024 steps
+  return ((voltage - 0.5) * 100.0);                              // converting from 10 mv per degree with 500 mV offset to degrees ((voltage - 500mV) times 100) - 5 degree calibration
 }

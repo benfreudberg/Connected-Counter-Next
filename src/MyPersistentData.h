@@ -7,7 +7,7 @@
 //Define external class instances. These are typically declared public in the main .CPP. I wonder if we can only declare it here?
 // extern MB85RC64 fram;
 
-//Macros(#define) to swap out during pre-processing (use sparingly). This is typically used outside of this .H and .CPP file within the main .CPP file or other .CPP files that reference this header file. 
+// Macros(#define) to swap out during pre-processing (use sparingly). This is typically used outside of this .H and .CPP file within the main .CPP file or other .CPP files that reference this header file. 
 // This way you can do "data.setup()" instead of "MyPersistentData::instance().setup()" as an example
 #define current currentStatusData::instance()
 #define sysStatus sysStatusData::instance()
@@ -88,8 +88,8 @@ public:
 		time_t lastHookResponse;                   		  // Last time we got a valid Webhook response
 		uint16_t lastConnectionDuration;                  // How long - in seconds - did it take to last connect to the Particle cloud
 		uint8_t sensorType;                               // What is the sensor type - 0-Pressure Sensor, 1-PIR Sensor
-		float firmwareRelease;							  // Point release - helpful in development
-		uint8_t delay;                                    // Delay setting for safely pausing between counts
+		String firmwareRelease;							  // Point release - helpful in development
+		String assetFirmwareRelease;					  // Asset's point release - helpful in development
 	};
 
 	SysData sysData;
@@ -163,11 +163,11 @@ public:
 	uint8_t get_sensorType() const;
 	void set_sensorType(uint8_t value);
 
-	float get_firmwareRelease() const;
-	void set_firmwareRelease(float value);
+	String get_firmwareRelease() const;
+	void set_firmwareRelease(String value);
 
-	uint8_t get_delay() const;
-	void set_delay(uint8_t value);
+	String get_assetFirmwareRelease() const;
+	void set_assetFirmwareRelease(String value);
 
 	//Members here are internal only and therefore protected
 protected:
@@ -335,7 +335,7 @@ public:
 	uint8_t get_batteryState() const;
 	void set_batteryState(uint8_t value);
 
-		//Members here are internal only and therefore protected
+	// Members here are internal only and therefore protected
 protected:
     /**
      * @brief The constructor is protected because the class is a singleton

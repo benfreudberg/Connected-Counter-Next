@@ -68,12 +68,11 @@ void sysStatusData::initialize() {
     sysStatus.set_lowBatteryMode(false);
     sysStatus.set_solarPowerMode(true);
     sysStatus.set_lowPowerMode(false);          // This should be changed to true once we have tested
-    sysStatus.set_timeZoneStr("ANAT-12");     // NZ Time
+    sysStatus.set_timeZoneStr("ANAT-12");       // NZ Time
     sysStatus.set_sensorType(2);                // Magnetometer sensor
     sysStatus.set_openTime(0);
-    sysStatus.set_closeTime(24);                                           // New standard with v20
-    sysStatus.set_lastConnectionDuration(0);                               // New measure
-    sysStatus.set_delay(2);                     // delay(seconds) for pausing detections from Magnetometer interrupt line, default 2s
+    sysStatus.set_closeTime(24);                // New standard with v20
+    sysStatus.set_lastConnectionDuration(0);    // New measure
 }
 
 uint8_t sysStatusData::get_structuresVersion() const {
@@ -179,20 +178,25 @@ void sysStatusData::set_sensorType(uint8_t value) {
     setValue<uint8_t>(offsetof(SysData, sensorType), value);
 }
 
-float sysStatusData::get_firmwareRelease() const {
-    return getValue<float>(offsetof(SysData,firmwareRelease));
+String sysStatusData::get_firmwareRelease() const {
+    String value;
+    getValueString(offsetof(SysData,firmwareRelease), sizeof(value), value);
+    return value;
+
 }
 
-void sysStatusData::set_firmwareRelease(float value) {
-    setValue<float>(offsetof(SysData, firmwareRelease),value);
+void sysStatusData::set_firmwareRelease(String value) {
+    setValueString(offsetof(SysData, firmwareRelease), sizeof(value), value);
 }
 
-uint8_t sysStatusData::get_delay() const  {
-    return getValue<uint8_t>(offsetof(SysData,delay));
+String sysStatusData::get_assetFirmwareRelease() const {
+    String value;
+    getValueString(offsetof(SysData,assetFirmwareRelease), sizeof(value), value);
+    return value;
 }
 
-void sysStatusData::set_delay(uint8_t value) {
-    setValue<uint8_t>(offsetof(SysData, delay), value);
+void sysStatusData::set_assetFirmwareRelease(String value) {
+    setValueString(offsetof(SysData, assetFirmwareRelease), sizeof(value), value);
 }
 
 // *****************  Current Status Storage Object *******************
@@ -228,19 +232,19 @@ void currentStatusData::loop() {
     current.flush(false);
 }
 
-void currentStatusData::resetEverything() {                             // The device is waking up in a new day or is a new install
+void currentStatusData::resetEverything() {          // The device is waking up in a new day or is a new install
   current.set_lastCountTime(Time.now());
-  sysStatus.set_resetCount(0);                                          // Reset the reset count as well
+  sysStatus.set_resetCount(0);                       // Reset the reset count as well
   current.set_hourlyCount(0);
   current.set_dailyCount(0);
   current.set_alertCode(0);
 }
 
 
-bool currentStatusData::validate(size_t dataSize) {
+bool currentStatusData::validate(size_t dataSize) {  // This needs to be fleshed out
     return true;
 
-};                      // This needs to be fleshed out
+};                      
 
 void currentStatusData::initialize() {
     PersistentDataFile::initialize();
@@ -249,8 +253,7 @@ void currentStatusData::initialize() {
 
     currentStatusData::resetEverything();
 
-    // If you manually update fields here, be sure to update the hash
-    updateHash();
+    updateHash();                                    // If you manually update fields here, be sure to update the hash
 }
 
 uint16_t currentStatusData::get_hourlyCount() const {

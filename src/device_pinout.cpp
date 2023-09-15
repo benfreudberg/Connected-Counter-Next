@@ -45,41 +45,41 @@ const pin_t BLUE_LED          = D7;
 const pin_t WAKEUP_PIN        = D8;
 
 // Sensor specific Pins
-extern const pin_t INT_PIN =  D13;                      // for Magnetometer
-extern const pin_t ENABLE_PIN = D12;                    // Bring low to enable the module
-const pin_t DTR_PIN = D11;                               // Not used for this sketch
+extern const pin_t INT_PIN =  D13;                              // for Magnetometer
+extern const pin_t ENABLE_PIN = D12;                            // Bring low to enable the module
+const pin_t DTR_PIN = D11;                                      // Not used for this sketch
 
 bool initializePinModes() {
     Log.info("Initalizing the pinModes");
     // Define as inputs or outputs
-    pinMode(BUTTON_PIN,INPUT);               // User button on the carrier board - active LOW
-    pinMode(WAKEUP_PIN,INPUT);                      // This pin is active HIGH
-    pinMode(BLUE_LED,OUTPUT);                       // On the Boron itself
-    pinMode(INT_PIN, INPUT);                        // Interrupt pin for the Magnetometer
-    pinMode(ENABLE_PIN,OUTPUT);                     // Bring low to enable the module
-    pinSetDriveStrength(ENABLE_PIN, DriveStrength::HIGH);          // Set the drive strength to high to drive the FET
-    digitalWrite(ENABLE_PIN, LOW);					// Turns on the module
-    pinMode(DTR_PIN,OUTPUT);                        // Not used for this sketch
-    digitalWrite(DTR_PIN, LOW);                     // Not used for this sketch
+    pinMode(BUTTON_PIN,INPUT);                                  // User button on the carrier board - active LOW
+    pinMode(WAKEUP_PIN,INPUT);                                  // This pin is active HIGH
+    pinMode(BLUE_LED,OUTPUT);                                   // On the Boron itself
+    pinMode(INT_PIN, INPUT);                                    // Interrupt pin for the Magnetometer
+    pinMode(ENABLE_PIN,OUTPUT);                                 // Bring low to enable the module
+    pinSetDriveStrength(ENABLE_PIN, DriveStrength::HIGH);       // Set the drive strength to high to drive the FET
+    digitalWrite(ENABLE_PIN, LOW);					            // Turns on the module
+    pinMode(DTR_PIN,OUTPUT);                                    // Not used for this sketch
+    digitalWrite(DTR_PIN, LOW);                                 // Not used for this sketch
     return true;
 }
 
 bool initializePowerCfg() {
     Log.info("Initializing Power Config");
-    const int maxCurrentFromPanel = 900;            // Not currently used (100,150,500,900,1200,2000 - will pick closest) (550mA for 3.5W Panel, 340 for 2W panel)
+    const int maxCurrentFromPanel = 900;                        // Not currently used (100,150,500,900,1200,2000 - will pick closest) (550mA for 3.5W Panel, 340 for 2W panel)
     SystemPowerConfiguration conf;
-    System.setPowerConfiguration(SystemPowerConfiguration());  // To restore the default configuration
+    System.setPowerConfiguration(SystemPowerConfiguration());   // To restore the default configuration
 
     conf.feature(SystemPowerFeature::PMIC_DETECTION)
-        .powerSourceMaxCurrent(maxCurrentFromPanel) // Set maximum current the power source can provide  3.5W Panel (applies only when powered through VIN)
-        .powerSourceMinVoltage(5080) // Set minimum voltage the power source can provide (applies only when powered through VIN)
-        .batteryChargeCurrent(maxCurrentFromPanel) // Set battery charge current
-        .batteryChargeVoltage(4208) // Set battery termination voltage
+        .powerSourceMaxCurrent(maxCurrentFromPanel)             // Set maximum current the power source can provide  3.5W Panel (applies only when powered through VIN)
+        .powerSourceMinVoltage(5080)                            // Set minimum voltage the power source can provide (applies only when powered through VIN)
+        .batteryChargeCurrent(maxCurrentFromPanel)              // Set battery charge current
+        .batteryChargeVoltage(4208)                             // Set battery termination voltage
         .feature(SystemPowerFeature::USE_VIN_SETTINGS_WITH_USB_HOST); // For the cases where the device is powered through VIN
-                                                                     // but the USB cable is connected to a USB host, this feature flag
-                                                                     // enforces the voltage/current limits specified in the configuration
-                                                                     // (where by default the device would be thinking that it's powered by the USB Host)
-    int res = System.setPowerConfiguration(conf); // returns SYSTEM_ERROR_NONE (0) in case of success
+                                                                      // but the USB cable is connected to a USB host, this feature flag
+                                                                      // enforces the voltage/current limits specified in the configuration
+                                                                      // (where by default the device would be thinking that it's powered by the USB Host)
+    int res = System.setPowerConfiguration(conf);               // returns SYSTEM_ERROR_NONE (0) in case of success
     if (res == 0) Log.info("Power configuration process succcesful");
     return res;
 }
