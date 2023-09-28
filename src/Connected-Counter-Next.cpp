@@ -485,19 +485,19 @@ inline String retrieveAssetFirmwareVersion() {
 		return "0.0";
 	} break;
     case 2: {												 /*** Magnetometer Sensor ***/
-	  Serial1.begin(115200);								 // Open serial connection
-	  delay(1000);  								  		 // Make sure the serial monitor can connect
-	  Serial1.print("*VER?");							     // Query magnetometer for its version
-	  String version = Serial.readString();  				 // Read until timeout
-	  Serial1.end();								         // Close serial connection
-	  delay(1000);  								  		 // Make sure the serial monitor can disconnect
-	  return version;
-    }
+		Serial1.begin(115200);								 // Open serial connection
+		waitFor(Serial1.available(), 10000); 				 // Make sure the serial monitor can connect
+		Serial1.print("*VER?");								 // Query magnetometer for its version
+		delay(1000); 							     		 // Make sure it has time to output
+		String version = Serial1.readString();		 		 // Read the output		 
+		Serial1.end();	
+		return version;							             // Close serial connection
+    } break;
     case 3: {												 /*** Accelerometer Sensor ***/
-      	// set or retrieve accelerometer sensor's firmware version here 
-	  return "0.0";
+		// set or retrieve accelerometer sensor's firmware version here 
+		return "0.0";
     } break;
     default:
-      return "0.0";                                  		 // Default to 0.0
+     	return "0.0";                                  		 // Default to 0.0
   }
 }

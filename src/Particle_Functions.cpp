@@ -227,6 +227,33 @@ int Particle_Functions::jsonFunctionParser(String command) {
       }
     }
 
+    // turn on verbose mode
+    else if (function == "verbose") {
+      // Format - function - rpt, variables - true or false
+      // Test - {"cmd":[{"var":"true","fn":"verbose"}]}
+      if (variable == "true") {
+        snprintf(messaging,sizeof(messaging),"Verbose mode activated");
+        sysStatus.set_verboseMode(true);
+      }
+      else {
+        snprintf(messaging,sizeof(messaging),"Verbose mode deactivated");
+        sysStatus.set_verboseMode(false);
+      }
+    }
+
+    // execute a string command on connected asset via Serial.
+    else if (function == "serialAssetCommand") {
+      // Format - function - serialAssetCommand, variables - any string
+      // Test - {"cmd":[{"var":"CONF:BUF","fn":"serialAssetCommand"}]}
+      Serial1.begin(115200);
+      while (!Serial1.available()){
+          delay(10); // Wait until serial connection is established
+      }
+      delay(1000);  // Make sure the serial monitor can connect
+      Serial1.printlnf(variable);
+      snprintf(messaging,sizeof(messaging),"Executed asset command:" + variable);
+    }
+
     // What if none of these functions are recognized
     else {
       snprintf(messaging,sizeof(messaging),"%s is not a valid command", function.c_str());

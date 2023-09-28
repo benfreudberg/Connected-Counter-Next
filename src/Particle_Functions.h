@@ -80,6 +80,16 @@ public:
      */
     bool meterParticlePublish();
 
+    /**
+     * @brief Queries an attached Serial asset and retrieves its version 
+     * 
+     * @details Forces a wait so we don't get rate limited
+     * 
+     * @returns Returns true if it has been more than a second since last publish
+     * 
+     */
+    String querySerialForAssetVersion();
+
 
 protected:
     /**
