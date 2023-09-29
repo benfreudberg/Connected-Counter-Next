@@ -227,20 +227,6 @@ int Particle_Functions::jsonFunctionParser(String command) {
       }
     }
 
-    // turn on verbose mode
-    else if (function == "verbose") {
-      // Format - function - rpt, variables - true or false
-      // Test - {"cmd":[{"var":"true","fn":"verbose"}]}
-      if (variable == "true") {
-        snprintf(messaging,sizeof(messaging),"Verbose mode activated");
-        sysStatus.set_verboseMode(true);
-      }
-      else {
-        snprintf(messaging,sizeof(messaging),"Verbose mode deactivated");
-        sysStatus.set_verboseMode(false);
-      }
-    }
-
     // execute a string command on connected asset via Serial.
     else if (function == "serialAssetCommand") {
       // Format - function - serialAssetCommand, variables - any string
