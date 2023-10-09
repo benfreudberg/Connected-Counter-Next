@@ -8,12 +8,14 @@
 #include "LocalTimeRK.h"
 
 // Prototypes and System Mode calls
-SYSTEM_MODE(SEMI_AUTOMATIC);                        // This will enable user code to start executing automatically.
+SYSTEM_MODE(AUTOMATIC);                        // This will enable user code to start executing automatically.
 SYSTEM_THREAD(ENABLED);                             // Means my code will not be held up by Particle processes.
 STARTUP(System.enableFeature(FEATURE_RESET_INFO));
 
 SerialLogHandler logHandler(LOG_LEVEL_INFO);     // Easier to see the program flow
 LocalTimeConvert conv;								// For determining if the park should be opened or closed - need local time
+
+bool newConfigurationFlag = false;
 
 
 // Battery Conect variables
@@ -239,7 +241,11 @@ int Particle_Functions::jsonFunctionParser(String command) {
     }
 
 	}
-	return success;
+  char configData[256]; // Store the configurationdata in this character array - not global
+  snprintf(configData, sizeof(configData), "{\"timestamp\":%lu000, \"power\":\"%s\", \"lowPowerMode\":\"%s\", \"timeZone\":\"" + sysStatus.get_timeZoneStr() + "\", \"open\":%i, \"close\":%i, \"sensorType\":%i, \"verbose\":\"%s\", \"connecttime\":%i, \"battery\":%4.2f}", Time.now(), sysStatus.get_solarPowerMode() ? "Solar" : "Utility", sysStatus.get_lowPowerMode() ? "Low Power" : "Not Low Power", sysStatus.get_openTime(), sysStatus.get_closeTime(), sysStatus.get_sensorType(), sysStatus.get_verboseMode() ? "Verbose" : "Not Verbose", sysStatus.get_lastConnectionDuration(), current.get_stateOfCharge());
+  PublishQueuePosix::instance().publish("Send-Configuration", configData, PRIVATE | WITH_ACK);    // Send new configuration to FleetManager backend. (v1.4)
+	
+  return success;
 }
 
 /**
@@ -252,15 +258,13 @@ int Particle_Functions::jsonFunctionParser(String command) {
  */
 void Particle_Functions::sendEvent() {
   char data[256];                                                     // Store the data in this character array - not global
-  char configData[256];                                               // Store the configurationdata in this character array - not global
 
   unsigned long timeStampValue;                                       // Going to start sending timestamps - and will modify for midnight to fix reporting issue
   timeStampValue = Time.now()-(Time.minute()*60L+Time.second()+1L);   // Set the timestamp as the last second of the previous hour
 
   snprintf(data, sizeof(data), "{\"hourly\":%i, \"daily\":%i, \"battery\":%4.2f,\"key1\":\"%s\", \"temp\":%4.2f, \"resets\":%i, \"alerts\":%i,\"connecttime\":%i,\"timestamp\":%lu000}",current.get_hourlyCount(), current.get_dailyCount(), current.get_stateOfCharge(), batteryContext[current.get_batteryState()],current.get_internalTempC(), sysStatus.get_resetCount(), current.get_alertCode(), sysStatus.get_lastConnectionDuration(), timeStampValue);
-  snprintf(configData, sizeof(configData), "{\"timestamp\":%lu000, \"power\":\"%s\", \"lowPowerMode\":\"%s\", \"timeZone\":\"" + sysStatus.get_timeZoneStr() + "\", \"open\":%i, \"close\":%i, \"sensorType\":%i, \"verbose\":\"%s\", \"connecttime\":%i, \"battery\":%4.2f}", timeStampValue, sysStatus.get_solarPowerMode() ? "Solar" : "Utility", sysStatus.get_lowPowerMode() ? "Low Power" : "Not Low Power", sysStatus.get_openTime(), sysStatus.get_closeTime(), sysStatus.get_sensorType(), sysStatus.get_verboseMode() ? "Verbose" : "Not Verbose", sysStatus.get_lastConnectionDuration(), current.get_stateOfCharge());
+
   PublishQueuePosix::instance().publish("Ubidots-Counter-Hook-v1", data, PRIVATE | WITH_ACK);
-  PublishQueuePosix::instance().publish("Send-Configuration", configData, PRIVATE | WITH_ACK);          // Send data to FleetManager backend. (v1.4)
   Log.info("Ubidots Webhook: %s", data);                              // For monitoring via serial
   current.set_alertCode(0);                                           // Reset the alert after publish
   current.set_hourlyCount(0);                                         // Reset the hourly count after publish
