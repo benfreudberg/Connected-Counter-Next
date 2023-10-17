@@ -64,10 +64,10 @@ void sysStatusData::initialize() {
     if (Particle.connected()) Particle.publish("Mode",message, PRIVATE);
     Log.info("Loading system defaults");
     sysStatus.set_structuresVersion(1);
-    sysStatus.set_verboseMode(true);
+    sysStatus.set_verboseMode(false);
     sysStatus.set_lowBatteryMode(false);
-    sysStatus.set_solarPowerMode(true);
-    sysStatus.set_lowPowerMode(false);          // This should be changed to true once we have tested
+    sysStatus.set_solarPowerMode(false);
+    sysStatus.set_lowPowerMode(true);          // This should be changed to true once we have tested
     sysStatus.set_timeZoneStr("ANAT-12");       // NZ Time
     sysStatus.set_sensorType(2);                // Magnetometer sensor
     sysStatus.set_openTime(0);

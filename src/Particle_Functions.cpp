@@ -8,16 +8,18 @@
 #include "LocalTimeRK.h"
 
 // Prototypes and System Mode calls
-SYSTEM_MODE(SEMI_AUTOMATIC);                        // This will enable user code to start executing automatically.
+SYSTEM_MODE(AUTOMATIC);                        // This will enable user code to start executing automatically.
 SYSTEM_THREAD(ENABLED);                             // Means my code will not be held up by Particle processes.
 STARTUP(System.enableFeature(FEATURE_RESET_INFO));
 
 SerialLogHandler logHandler(LOG_LEVEL_INFO);     // Easier to see the program flow
 LocalTimeConvert conv;								// For determining if the park should be opened or closed - need local time
 
+bool newConfigurationFlag = false;
 
-// Battery Conect variables
-// Battery conect information - https://docs.particle.io/reference/device-os/firmware/boron/#batterystate-
+
+// Battery Connect variables
+// Battery connect information - https://docs.particle.io/reference/device-os/firmware/boron/#batterystate-
 const char* batteryContext[7] = {"Unknown","Not Charging","Charging","Charged","Discharging","Fault","Diconnected"};
 
 Particle_Functions *Particle_Functions::_instance;
@@ -69,6 +71,11 @@ int Particle_Functions::jsonFunctionParser(String command) {
 	if (!jp.parse()) {
 		Log.info("Parsing failed - check syntax");
     Particle.publish("cmd", "Parsing failed - check syntax",PRIVATE);
+    char data[128];  
+    snprintf(data, sizeof(data), "{\"commands\":%i,\"context\":\"%s,\"timestamp\":%lu000 }", -1, command.c_str(), Time.now());        // Send -1 (Syntax Error) to the 'commands' Synthetic Variable
+    PublishQueuePosix::instance().publish("Ubidots_Command_Hook", data, PRIVATE);
+    snprintf(data, sizeof(data), "{\"commands\":%i,\"context\":\"%s\",\"timestamp\":%lu000 }", -10, command.c_str(), Time.now());    // Send -10, resolve any events
+    PublishQueuePosix::instance().publish("Ubidots_Command_Hook", data, PRIVATE);
 		return 0;
 	}
 
@@ -239,7 +246,26 @@ int Particle_Functions::jsonFunctionParser(String command) {
     }
 
 	}
-	return success;
+  if (function != "send") { // "Send" will call sendEvent and send a configuration anyway, so we can skip this command here.
+    char configData[256]; // Store the configuration data in this character array - not global
+    snprintf(configData, sizeof(configData), "{\"timestamp\":%lu000, \"power\":\"%s\", \"lowPowerMode\":\"%s\", \"timeZone\":\"" + sysStatus.get_timeZoneStr() + "\", \"open\":%i, \"close\":%i, \"sensorType\":%i, \"verbose\":\"%s\", \"connecttime\":%i, \"battery\":%4.2f}", Time.now(), sysStatus.get_solarPowerMode() ? "Solar" : "Utility", sysStatus.get_lowPowerMode() ? "Low Power" : "Not Low Power", sysStatus.get_openTime(), sysStatus.get_closeTime(), sysStatus.get_sensorType(), sysStatus.get_verboseMode() ? "Verbose" : "Not Verbose", sysStatus.get_lastConnectionDuration(), current.get_stateOfCharge());
+    PublishQueuePosix::instance().publish("Send-Configuration", configData, PRIVATE | WITH_ACK);    // Send new configuration to FleetManager backend. (v1.4)
+  }
+  if(success == true){
+    char data[128];
+    snprintf(data, sizeof(data), "{\"commands\":%i,\"context\":\"%s\",\"timestamp\":%lu000 }", 1, function.c_str(), Time.now());    // Send 1 (Execution Success) to the 'commands' Synthetic Variable
+    PublishQueuePosix::instance().publish("Ubidots_Command_Hook", data, PRIVATE);
+    snprintf(data, sizeof(data), "{\"commands\":%i,\"context\":\"%s\",\"timestamp\":%lu000 }", -10, function.c_str(), Time.now());    // Send -10, resolve any events
+    PublishQueuePosix::instance().publish("Ubidots_Command_Hook", data, PRIVATE);
+  } else {
+    char data[128];  
+    snprintf(data, sizeof(data), "{\"commands\":%i,\"context\":\"%s\",\"timestamp\":%lu000 }", 0, function.c_str(), Time.now());    // Send 0 (Execution Failure) to the 'commands' Synthetic Variable
+    PublishQueuePosix::instance().publish("Ubidots_Command_Hook", data, PRIVATE);
+    snprintf(data, sizeof(data), "{\"commands\":%i,\"context\":\"%s\",\"timestamp\":%lu000 }", -10, function.c_str(), Time.now());    // Send -10, resolve any events
+    PublishQueuePosix::instance().publish("Ubidots_Command_Hook", data, PRIVATE);
+  }
+
+  return success;
 }
 
 /**
@@ -251,12 +277,20 @@ int Particle_Functions::jsonFunctionParser(String command) {
  *
  */
 void Particle_Functions::sendEvent() {
-  char data[256];                                                     // Store the date in this character array - not global
+  char data[256];                                                     // Store the data in this character array - not global
+  char configData[256];                                               // Store the configuration data in this character array - not global
+
   unsigned long timeStampValue;                                       // Going to start sending timestamps - and will modify for midnight to fix reporting issue
   timeStampValue = Time.now()-(Time.minute()*60L+Time.second()+1L);   // Set the timestamp as the last second of the previous hour
 
   snprintf(data, sizeof(data), "{\"hourly\":%i, \"daily\":%i, \"battery\":%4.2f,\"key1\":\"%s\", \"temp\":%4.2f, \"resets\":%i, \"alerts\":%i,\"connecttime\":%i,\"timestamp\":%lu000}",current.get_hourlyCount(), current.get_dailyCount(), current.get_stateOfCharge(), batteryContext[current.get_batteryState()],current.get_internalTempC(), sysStatus.get_resetCount(), current.get_alertCode(), sysStatus.get_lastConnectionDuration(), timeStampValue);
   PublishQueuePosix::instance().publish("Ubidots-Counter-Hook-v1", data, PRIVATE | WITH_ACK);
+
+  PublishQueuePosix::instance().publish("Update-Device", nullptr, PRIVATE | WITH_ACK);  // Tell the UpdateDevice UbiFunction to update this device if any updates are available in SQS.
+
+  snprintf(configData, sizeof(configData), "{\"timestamp\":%lu000, \"power\":\"%s\", \"lowPowerMode\":\"%s\", \"timeZone\":\"" + sysStatus.get_timeZoneStr() + "\", \"open\":%i, \"close\":%i, \"sensorType\":%i, \"verbose\":\"%s\", \"connecttime\":%i, \"battery\":%4.2f}", Time.now(), sysStatus.get_solarPowerMode() ? "Solar" : "Utility", sysStatus.get_lowPowerMode() ? "Low Power" : "Not Low Power", sysStatus.get_openTime(), sysStatus.get_closeTime(), sysStatus.get_sensorType(), sysStatus.get_verboseMode() ? "Verbose" : "Not Verbose", sysStatus.get_lastConnectionDuration(), current.get_stateOfCharge());
+  PublishQueuePosix::instance().publish("Send-Configuration", configData, PRIVATE | WITH_ACK);    // Send new configuration to FleetManager backend. (v1.4)
+
   Log.info("Ubidots Webhook: %s", data);                              // For monitoring via serial
   current.set_alertCode(0);                                           // Reset the alert after publish
   current.set_hourlyCount(0);                                         // Reset the hourly count after publish
@@ -264,7 +298,7 @@ void Particle_Functions::sendEvent() {
 
 
 bool Particle_Functions::disconnectFromParticle() {                    // Ensures we disconnect cleanly from Particle
-                                                                       // Updated based on this thread: https://community.particle.io/t/waitfor-particle-connected-timeout-does-not-time-out/59181                                                                      		// Updated based on this thread: https://community.particle.io/t/waitfor-particle-connected-timeout-does-not-time-out/59181
+                                                                       // Updated based on this thread: https://community.particle.io/t/waitfor-particle-connected-timeout-does-not-time-out/59181
   time_t startTime = Time.now();
   Log.info("In the disconnect from Particle function");
   Particle.disconnect();                                               		// Disconnect from Particle
