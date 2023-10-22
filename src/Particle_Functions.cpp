@@ -8,12 +8,12 @@
 #include "LocalTimeRK.h"
 
 // Prototypes and System Mode calls
-SYSTEM_MODE(AUTOMATIC);                        // This will enable user code to start executing automatically.
-SYSTEM_THREAD(ENABLED);                             // Means my code will not be held up by Particle processes.
+SYSTEM_MODE(AUTOMATIC);                           // This will enable user code to start executing automatically.
+SYSTEM_THREAD(ENABLED);                           // Means my code will not be held up by Particle processes.
 STARTUP(System.enableFeature(FEATURE_RESET_INFO));
 
-SerialLogHandler logHandler(LOG_LEVEL_INFO);     // Easier to see the program flow
-LocalTimeConvert conv;								// For determining if the park should be opened or closed - need local time
+SerialLogHandler logHandler(LOG_LEVEL_INFO);      // Easier to see the program flow
+LocalTimeConvert conv;								            // For determining if the park should be opened or closed - need local time
 
 bool newConfigurationFlag = false;
 
@@ -83,17 +83,17 @@ int Particle_Functions::jsonFunctionParser(String command) {
 	jp.getValueTokenByKey(jp.getOuterObject(), "cmd", cmdArrayContainer);
 	const JsonParserGeneratorRK::jsmntok_t *cmdObjectContainer;			// Token for the objects in the array (I beleive)
 
-	for (int i=0; i<10; i++) {												// Iterate through the array looking for a match
+	for (int i=0; i<10; i++) {												              // Iterate through the array looking for a match
 		cmdObjectContainer = jp.getTokenByIndex(cmdArrayContainer, i);
 		if(cmdObjectContainer == NULL) {
       if (i == 0) return 0;                                       // No valid entries
-			else break;								                    // Ran out of entries 
+			else break;								                                  // Ran out of entries 
 		} 
 		jp.getValueByKey(cmdObjectContainer, "var", variable);
 		jp.getValueByKey(cmdObjectContainer, "fn", function);
 
     // In this section we will parse and execute the commands from the console or JSON - assumes connection to Particle
-    // ****************  Note: currently there is no valudiation on the nodeNumbers ***************************
+    // ****************  Note: currently there is no validiation on the nodeNumbers ***************************
     // Reset Function
 		if (function == "reset") {
       // Format - function - reset,  variables - either "current", or "all" 
@@ -101,7 +101,7 @@ int Particle_Functions::jsonFunctionParser(String command) {
 
       if (variable == "all") {
           snprintf(messaging,sizeof(messaging),"Resetting the gateway's system and current data");
-          sysStatus.initialize();                     // All will reset system values as well
+          sysStatus.initialize();                                 // All will reset system values as well
           current.resetEverything();
       }
       else snprintf(messaging,sizeof(messaging),"Resetting the gateway's current data");
@@ -173,7 +173,7 @@ int Particle_Functions::jsonFunctionParser(String command) {
       }
       else {
         snprintf(messaging,sizeof(messaging),"Open hour - must be 0-12");
-        success = false;                                                       // Make sure it falls in a valid range or send a "fail" result
+        success = false;                                               // Make sure it falls in a valid range or send a "fail" result
       }
     }
 
@@ -187,7 +187,7 @@ int Particle_Functions::jsonFunctionParser(String command) {
       }
       else {
         snprintf(messaging,sizeof(messaging),"Close hour - must be 13-24");
-        success = false;                                                       // Make sure it falls in a valid range or send a "fail" result
+        success = false;                                               // Make sure it falls in a valid range or send a "fail" result
       }
     }
 
@@ -201,7 +201,7 @@ int Particle_Functions::jsonFunctionParser(String command) {
       }
       else {
         snprintf(messaging,sizeof(messaging),"Count - must be 0-2048");
-        success = false;                                                       // Make sure it falls in a valid range or send a "fail" result
+        success = false;                                               // Make sure it falls in a valid range or send a "fail" result
       }
     }
 
@@ -216,7 +216,7 @@ int Particle_Functions::jsonFunctionParser(String command) {
       }
       else {
         snprintf(messaging,sizeof(messaging),"Sensor number out of range (0-3)");
-        success = false;                                                       // Make sure it falls in a valid range or send a "fail" result
+        success = false;                                               // Make sure it falls in a valid range or send a "fail" result
       }
     }
 
@@ -246,22 +246,25 @@ int Particle_Functions::jsonFunctionParser(String command) {
     }
 
 	}
-  if (function != "send") { // "Send" will call sendEvent and send a configuration anyway, so we can skip this command here.
+  if (function != "send") {                                                                                           // "Send" will call sendEvent and send a configuration anyway, so we can skip this command here.
     char configData[256]; // Store the configuration data in this character array - not global
     snprintf(configData, sizeof(configData), "{\"timestamp\":%lu000, \"power\":\"%s\", \"lowPowerMode\":\"%s\", \"timeZone\":\"" + sysStatus.get_timeZoneStr() + "\", \"open\":%i, \"close\":%i, \"sensorType\":%i, \"verbose\":\"%s\", \"connecttime\":%i, \"battery\":%4.2f}", Time.now(), sysStatus.get_solarPowerMode() ? "Solar" : "Utility", sysStatus.get_lowPowerMode() ? "Low Power" : "Not Low Power", sysStatus.get_openTime(), sysStatus.get_closeTime(), sysStatus.get_sensorType(), sysStatus.get_verboseMode() ? "Verbose" : "Not Verbose", sysStatus.get_lastConnectionDuration(), current.get_stateOfCharge());
-    PublishQueuePosix::instance().publish("Send-Configuration", configData, PRIVATE | WITH_ACK);    // Send new configuration to FleetManager backend. (v1.4)
+    PublishQueuePosix::instance().publish("Send-Configuration", configData, PRIVATE | WITH_ACK);                                    // Send new configuration to FleetManager backend. (v1.4)
   }
   if(success == true){
     char data[128];
     snprintf(data, sizeof(data), "{\"commands\":%i,\"context\":\"%s\",\"timestamp\":%lu000 }", 1, function.c_str(), Time.now());    // Send 1 (Execution Success) to the 'commands' Synthetic Variable
     PublishQueuePosix::instance().publish("Ubidots_Command_Hook", data, PRIVATE);
-    snprintf(data, sizeof(data), "{\"commands\":%i,\"context\":\"%s\",\"timestamp\":%lu000 }", -10, function.c_str(), Time.now());    // Send -10, resolve any events
+    snprintf(data, sizeof(data), "{\"commands\":%i,\"context\":\"%s\",\"timestamp\":%lu000 }", -10, function.c_str(), Time.now());  // Send -10, resolve any events
     PublishQueuePosix::instance().publish("Ubidots_Command_Hook", data, PRIVATE);
+    char configData[256]; 							 	                                                                                          // Store the configuration data in this character array - not global
+    snprintf(configData, sizeof(configData), "{\"timestamp\":%lu000, \"power\":\"%s\", \"lowPowerMode\":\"%s\", \"timeZone\":\"" + sysStatus.get_timeZoneStr() + "\", \"open\":%i, \"close\":%i, \"sensorType\":%i, \"verbose\":\"%s\", \"connecttime\":%i, \"battery\":%4.2f}", Time.now(), sysStatus.get_solarPowerMode() ? "Solar" : "Utility", sysStatus.get_lowPowerMode() ? "Low Power" : "Not Low Power", sysStatus.get_openTime(), sysStatus.get_closeTime(), sysStatus.get_sensorType(), sysStatus.get_verboseMode() ? "Verbose" : "Not Verbose", sysStatus.get_lastConnectionDuration(), current.get_stateOfCharge());
+    PublishQueuePosix::instance().publish("Send-Configuration", configData, PRIVATE | WITH_ACK);                                    // Send new configuration to FleetManager backend. (v1.4)
   } else {
     char data[128];  
     snprintf(data, sizeof(data), "{\"commands\":%i,\"context\":\"%s\",\"timestamp\":%lu000 }", 0, function.c_str(), Time.now());    // Send 0 (Execution Failure) to the 'commands' Synthetic Variable
     PublishQueuePosix::instance().publish("Ubidots_Command_Hook", data, PRIVATE);
-    snprintf(data, sizeof(data), "{\"commands\":%i,\"context\":\"%s\",\"timestamp\":%lu000 }", -10, function.c_str(), Time.now());    // Send -10, resolve any events
+    snprintf(data, sizeof(data), "{\"commands\":%i,\"context\":\"%s\",\"timestamp\":%lu000 }", -10, function.c_str(), Time.now());  // Send -10, resolve any events
     PublishQueuePosix::instance().publish("Ubidots_Command_Hook", data, PRIVATE);
   }
 
@@ -287,9 +290,6 @@ void Particle_Functions::sendEvent() {
   PublishQueuePosix::instance().publish("Ubidots-Counter-Hook-v1", data, PRIVATE | WITH_ACK);
 
   PublishQueuePosix::instance().publish("Update-Device", nullptr, PRIVATE | WITH_ACK);  // Tell the UpdateDevice UbiFunction to update this device if any updates are available in SQS.
-
-  snprintf(configData, sizeof(configData), "{\"timestamp\":%lu000, \"power\":\"%s\", \"lowPowerMode\":\"%s\", \"timeZone\":\"" + sysStatus.get_timeZoneStr() + "\", \"open\":%i, \"close\":%i, \"sensorType\":%i, \"verbose\":\"%s\", \"connecttime\":%i, \"battery\":%4.2f}", Time.now(), sysStatus.get_solarPowerMode() ? "Solar" : "Utility", sysStatus.get_lowPowerMode() ? "Low Power" : "Not Low Power", sysStatus.get_openTime(), sysStatus.get_closeTime(), sysStatus.get_sensorType(), sysStatus.get_verboseMode() ? "Verbose" : "Not Verbose", sysStatus.get_lastConnectionDuration(), current.get_stateOfCharge());
-  PublishQueuePosix::instance().publish("Send-Configuration", configData, PRIVATE | WITH_ACK);    // Send new configuration to FleetManager backend. (v1.4)
 
   Log.info("Ubidots Webhook: %s", data);                              // For monitoring via serial
   current.set_alertCode(0);                                           // Reset the alert after publish

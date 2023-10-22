@@ -458,7 +458,27 @@ void dailyCleanup() {
   if (sysStatus.get_solarPowerMode() || current.get_stateOfCharge() <= 65) {     	// If Solar or if the battery is being discharged
     sysStatus.set_lowPowerMode(true);
   }
-  current.resetEverything();                                                   		// If so, we need to Zero the counts for the new day
+  if(sysStatus.get_sensorType() != 2){					 // Execute a response check on the serial line ONLY if the device is not already a Magnetometer
+	int version = -1;  										 // Set version to negative integer, we will check if this has changed later
+  	Serial1.begin(115200);						     		 // Open serial connection
+  	softDelay(500);  								  		 // Make sure the serial monitor can connect
+  	Serial1.print("*VER?");									 // Query device for its Version
+  	softDelay(500);											 // Make sure the asset can print the version to serial
+	version = Serial1.parseInt();   						 // Read an Integer
+	Log.info("Response from Serial (-1 = no response) ? %d", version);
+	if(version != -1){							 			 // Close serial connection 
+		Serial1.end();								 		 // If we returned something ...
+		sysStatus.set_sensorType(2);						 	// ... take note that we are a magnetometer now.		
+		Log.info("Response from Serial. Setting device type to \"Magnetometer\"");
+		Particle.publish("Magnetometer Sensor Detected. Setting Sensor Type.", "2 (Magnetometer)", PRIVATE);
+	} else {
+		Log.info("No Response from Serial. Not changing device sensor type.");
+	}
+  }
+  char configData[256]; 							 	 // Store the configuration data in this character array - not global
+  snprintf(configData, sizeof(configData), "{\"timestamp\":%lu000, \"power\":\"%s\", \"lowPowerMode\":\"%s\", \"timeZone\":\"" + sysStatus.get_timeZoneStr() + "\", \"open\":%i, \"close\":%i, \"sensorType\":%i, \"verbose\":\"%s\", \"connecttime\":%i, \"battery\":%4.2f}", Time.now(), sysStatus.get_solarPowerMode() ? "Solar" : "Utility", sysStatus.get_lowPowerMode() ? "Low Power" : "Not Low Power", sysStatus.get_openTime(), sysStatus.get_closeTime(), sysStatus.get_sensorType(), sysStatus.get_verboseMode() ? "Verbose" : "Not Verbose", sysStatus.get_lastConnectionDuration(), current.get_stateOfCharge());
+  PublishQueuePosix::instance().publish("Send-Configuration", configData, PRIVATE | WITH_ACK);    // Send new configuration to FleetManager backend. (v1.4)
+  current.resetEverything();                             // If so, we need to Zero the counts for the new day
 }
 
 /**
@@ -490,7 +510,7 @@ inline String retrieveAssetFirmwareVersion() {
 	  Serial1.begin(115200);								 // Open serial connection
 	  delay(1000);  								  		 // Make sure the serial monitor can connect
 	  Serial1.print("*VER?");							     // Query magnetometer for its version
-	  String version = Serial.readString();  				 // Read until timeout
+	  String version = Serial1.readString();  				 // Read until timeout
 	  Serial1.end();								         // Close serial connection
 	  delay(1000);  								  		 // Make sure the serial monitor can disconnect
 	  return version;
