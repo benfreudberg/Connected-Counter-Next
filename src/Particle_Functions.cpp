@@ -13,10 +13,12 @@ SYSTEM_THREAD(ENABLED);                           // Means my code will not be h
 STARTUP(System.enableFeature(FEATURE_RESET_INFO));
 
 SerialLogHandler logHandler(LOG_LEVEL_INFO);      // Easier to see the program flow
+// Serial1LogHandler logHandler2(115200, LOG_LEVEL_WARN, {           // For querying the SCPI interface of an asset via the Serial1 line.
+//   { "app.asset", LOG_LEVEL_WARN }             
+// });                
 LocalTimeConvert conv;								            // For determining if the park should be opened or closed - need local time
 
 bool newConfigurationFlag = false;
-
 
 // Battery Connect variables
 // Battery connect information - https://docs.particle.io/reference/device-os/firmware/boron/#batterystate-
@@ -257,9 +259,6 @@ int Particle_Functions::jsonFunctionParser(String command) {
     PublishQueuePosix::instance().publish("Ubidots_Command_Hook", data, PRIVATE);
     snprintf(data, sizeof(data), "{\"commands\":%i,\"context\":\"%s\",\"timestamp\":%lu000 }", -10, function.c_str(), Time.now());  // Send -10, resolve any events
     PublishQueuePosix::instance().publish("Ubidots_Command_Hook", data, PRIVATE);
-    char configData[256]; 							 	                                                                                          // Store the configuration data in this character array - not global
-    snprintf(configData, sizeof(configData), "{\"timestamp\":%lu000, \"power\":\"%s\", \"lowPowerMode\":\"%s\", \"timeZone\":\"" + sysStatus.get_timeZoneStr() + "\", \"open\":%i, \"close\":%i, \"sensorType\":%i, \"verbose\":\"%s\", \"connecttime\":%i, \"battery\":%4.2f}", Time.now(), sysStatus.get_solarPowerMode() ? "Solar" : "Utility", sysStatus.get_lowPowerMode() ? "Low Power" : "Not Low Power", sysStatus.get_openTime(), sysStatus.get_closeTime(), sysStatus.get_sensorType(), sysStatus.get_verboseMode() ? "Verbose" : "Not Verbose", sysStatus.get_lastConnectionDuration(), current.get_stateOfCharge());
-    PublishQueuePosix::instance().publish("Send-Configuration", configData, PRIVATE | WITH_ACK);                                    // Send new configuration to FleetManager backend. (v1.4)
   } else {
     char data[128];  
     snprintf(data, sizeof(data), "{\"commands\":%i,\"context\":\"%s\",\"timestamp\":%lu000 }", 0, function.c_str(), Time.now());    // Send 0 (Execution Failure) to the 'commands' Synthetic Variable
@@ -281,7 +280,6 @@ int Particle_Functions::jsonFunctionParser(String command) {
  */
 void Particle_Functions::sendEvent() {
   char data[256];                                                     // Store the data in this character array - not global
-  char configData[256];                                               // Store the configuration data in this character array - not global
 
   unsigned long timeStampValue;                                       // Going to start sending timestamps - and will modify for midnight to fix reporting issue
   timeStampValue = Time.now()-(Time.minute()*60L+Time.second()+1L);   // Set the timestamp as the last second of the previous hour
@@ -297,27 +295,27 @@ void Particle_Functions::sendEvent() {
 }
 
 
-bool Particle_Functions::disconnectFromParticle() {                    // Ensures we disconnect cleanly from Particle
-                                                                       // Updated based on this thread: https://community.particle.io/t/waitfor-particle-connected-timeout-does-not-time-out/59181
+bool Particle_Functions::disconnectFromParticle() {                   // Ensures we disconnect cleanly from Particle
+                                                                      // Updated based on this thread: https://community.particle.io/t/waitfor-particle-connected-timeout-does-not-time-out/59181
   time_t startTime = Time.now();
   Log.info("In the disconnect from Particle function");
-  Particle.disconnect();                                               		// Disconnect from Particle
-  waitForNot(Particle.connected, 15000);                               		// Up to a 15 second delay() 
+  Particle.disconnect();                                              // Disconnect from Particle
+  waitForNot(Particle.connected, 15000);                              // Up to a 15 second delay()
   Particle.process();
-  if (Particle.connected()) {                      							// As this disconnect from Particle thing can be a·syn·chro·nous, we need to take an extra step to wait, 
+  if (Particle.connected()) {                      							      // As this disconnect from Particle thing can be a·syn·chro·nous, we need to take an extra step to wait, 
     Log.info("Failed to disconnect from Particle");
     return(false);
   }
   else Log.info("Disconnected from Particle in %i seconds", (int)(Time.now() - startTime));
   // Then we need to disconnect from Cellular and power down the cellular modem
   startTime = Time.now();
-  Cellular.disconnect();                                               // Disconnect from the cellular network
-  Cellular.off();                                                      // Turn off the cellular modem
-  waitFor(Cellular.isOff, 30000);                                      // As per TAN004: https://support.particle.io/hc/en-us/articles/1260802113569-TAN004-Power-off-Recommendations-for-SARA-R410M-Equipped-Devices
+  Cellular.disconnect();                                              // Disconnect from the cellular network
+  Cellular.off();                                                     // Turn off the cellular modem
+  waitFor(Cellular.isOff, 30000);                                     // As per TAN004: https://support.particle.io/hc/en-us/articles/1260802113569-TAN004-Power-off-Recommendations-for-SARA-R410M-Equipped-Devices
   Particle.process();
-  if (Cellular.isOn()) {                                               // At this point, if cellular is not off, we have a problem
+  if (Cellular.isOn()) {                                              // At this point, if cellular is not off, we have a problem
     Log.info("Failed to turn off the Cellular modem");
-    return(false);                                                     // Let the calling function know that we were not able to turn off the cellular modem
+    return(false);                                                    // Let the calling function know that we were not able to turn off the cellular modem
   }
   else {
     Log.info("Turned off the cellular modem in %i seconds", (int)(Time.now() - startTime));
