@@ -465,7 +465,7 @@ void dailyCleanup() {
   	Serial1.print("*VER?");									 // Query device for its Version
   	softDelay(500);											 // Make sure the asset can print the version to serial
 	version = Serial1.parseInt();   						 // Read an Integer
-	Log.info("Response from Serial? %d", version);
+	Log.info("Response from Serial (-1 = no response) ? %d", version);
 	if(version != -1){							 			 // Close serial connection 
 		Serial1.end();								 		 // If we returned something ...
 		sysStatus.set_sensorType(2);						 	// ... take note that we are a magnetometer now.		
