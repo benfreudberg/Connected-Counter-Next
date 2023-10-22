@@ -458,7 +458,7 @@ void dailyCleanup() {
   if (sysStatus.get_solarPowerMode() || current.get_stateOfCharge() <= 65) {     	// If Solar or if the battery is being discharged
     sysStatus.set_lowPowerMode(true);
   }
-	if(sysStatus.get_sensorType() != 2){					 // Execute a response check on the serial line ONLY if the device is not already a Magnetometer
+  if(sysStatus.get_sensorType() != 2){					 // Execute a response check on the serial line ONLY if the device is not already a Magnetometer
 	int version = -1;  										 // Set version to negative integer, we will check if this has changed later
   	Serial1.begin(115200);						     		 // Open serial connection
   	softDelay(500);  								  		 // Make sure the serial monitor can connect
