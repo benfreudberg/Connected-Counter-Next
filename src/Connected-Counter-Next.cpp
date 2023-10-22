@@ -21,7 +21,8 @@
 // v1.2.1 - Moved all interrupt functionality to Magnetometer instead, removed delay
 // v1.3 - Fixed issue with AlertHandline for AlertCode 31
 // v1.4 - Added publishing to the Update-Device, Send-Configuration, and Device-Command Particle Integration Hooks
-// v1.4.1 - Added Serial SCPI Query, automatically updates a device type to 2 (Magnetometer if
+// v1.4.1 - Added Serial SCPI Query, automatically updates a device type to 2 (Magnetometer) if a response is received.
+// v1.4.2 - Fixed bug where SCPI queries falsely triggered altomatic updates added in v1.4.1
 
 // Particle Libraries
 #include "Particle.h"                                 // Because it is a CPP file not INO
