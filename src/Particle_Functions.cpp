@@ -12,10 +12,7 @@ SYSTEM_MODE(AUTOMATIC);                           // This will enable user code 
 SYSTEM_THREAD(ENABLED);                           // Means my code will not be held up by Particle processes.
 STARTUP(System.enableFeature(FEATURE_RESET_INFO));
 
-SerialLogHandler logHandler(LOG_LEVEL_INFO);      // Easier to see the program flow
-// Serial1LogHandler logHandler2(115200, LOG_LEVEL_WARN, {           // For querying the SCPI interface of an asset via the Serial1 line.
-//   { "app.asset", LOG_LEVEL_WARN }             
-// });                
+SerialLogHandler logHandler(LOG_LEVEL_INFO);      // Easier to see the program flow               
 LocalTimeConvert conv;								            // For determining if the park should be opened or closed - need local time
 
 bool newConfigurationFlag = false;
