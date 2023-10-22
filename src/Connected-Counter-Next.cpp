@@ -285,7 +285,7 @@ void loop() {
   		} break;
 
   		case CONNECTING_STATE:{                                                // Will connect - or not and head back to the Idle state - We are using a 3,5, 7 minute back-off approach as recommended by Particle
-			dailyCleanupTestExecuted = false;								   // For testing Daily Cleanup in the Idle State
+			// dailyCleanupTestExecuted = false;								   // For testing Daily Cleanup in the Idle State
 			static State retainedOldState;                                     // Keep track for where to go next (depends on whether we were called from Reporting)
 			static unsigned long connectionStartTimeStamp;                     // Time in Millis that helps us know how long it took to connect
 			char data[64];                                                     // Holder for message strings
