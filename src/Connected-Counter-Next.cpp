@@ -19,6 +19,10 @@
 // v1.1 - Updated the pinMode and code for handling the user switch
 // v1.2 - Delay now in milliseconds. Added "retrieveAssetFirmwareVersion" to setup(), now able to configure printing various assets' firmware versions using the "status"="long" Particle function.
 // v1.2.1 - Moved all interrupt functionality to Magnetometer instead, removed delay
+// v1.3 - Fixed issue with AlertHandline for AlertCode 31
+// v1.4 - Added publishing to the Update-Device, Send-Configuration, and Device-Command Particle Integration Hooks
+// v1.4.1 - Added Serial SCPI Query, automatically updates a device type to 2 (Magnetometer) if a response is received.
+// v1.4.2 - Fixed bug where SCPI queries falsely triggered altomatic updates added in v1.4.1
 
 // Particle Libraries
 #include "Particle.h"                                 // Because it is a CPP file not INO
@@ -33,7 +37,7 @@
 #include "Alert_Handling.h"
 #include "Record_Counts.h"
 
-#define FIRMWARE_RELEASE "1.2"						  // Will update this and report with stats
+#define FIRMWARE_RELEASE "1.4"						  // Will update this and report with stats
 
 PRODUCT_VERSION(1);									  // For now, we are putting nodes and gateways in the same product group - need to deconflict #
 
@@ -79,6 +83,9 @@ const unsigned long webhookWait = 45000UL;            // How long will we wait f
 const unsigned long resetWait = 30000UL;              // How long will we wait in ERROR_STATE until reset
 unsigned long stayAwakeTimeStamp = 0UL;               // Timestamps for our timing variables..
 unsigned long stayAwake = stayAwakeLong;              // Stores the time we need to wait before napping
+
+// Testing variables
+// bool dailyCleanupTestExecuted = false;
 
 void setup() {
 
@@ -172,6 +179,10 @@ void setup() {
 void loop() {
 	switch (state) {
 		case IDLE_STATE: {						      // Unlike most sketches - nodes spend most time in sleep and only transit IDLE once or twice each period
+			// if(!dailyCleanupTestExecuted){
+			// 	dailyCleanup();
+			// 	dailyCleanupTestExecuted = true;
+			// }
 			if (state != oldState) publishStateTransition();
 			if (sysStatus.get_lowPowerMode() && (millis() - stayAwakeTimeStamp) > stayAwake) state = SLEEPING_STATE;         // When in low power mode, we can nap between taps
 			if (isParkOpen(false) && Time.hour() != Time.hour(sysStatus.get_lastReport())) state = REPORTING_STATE;          // We want to report on the hour but not after bedtime
@@ -274,6 +285,7 @@ void loop() {
   		} break;
 
   		case CONNECTING_STATE:{                                                // Will connect - or not and head back to the Idle state - We are using a 3,5, 7 minute back-off approach as recommended by Particle
+			// dailyCleanupTestExecuted = false;								   // For testing Daily Cleanup in the Idle State
 			static State retainedOldState;                                     // Keep track for where to go next (depends on whether we were called from Reporting)
 			static unsigned long connectionStartTimeStamp;                     // Time in Millis that helps us know how long it took to connect
 			char data[64];                                                     // Holder for message strings
@@ -456,7 +468,26 @@ void dailyCleanup() {
   if (sysStatus.get_solarPowerMode() || current.get_stateOfCharge() <= 65) {     	// If Solar or if the battery is being discharged
     sysStatus.set_lowPowerMode(true);
   }
-  current.resetEverything();                                                   		// If so, we need to Zero the counts for the new day
+  if(sysStatus.get_sensorType() != 2){			// Execute a response check on the serial line ONLY if the device is not already a Magnetometer
+	String version = "";  						    	// Set version to empty string, we will check if this has changed later
+  	Serial1.begin(115200);						    	// Open serial connection
+  	Serial1.print("*VER?");						    	// Query device for its Version
+	Serial1.setTimeout(200);							// Set a maximum timeout
+	version = Serial1.readString();
+	Log.info("Response from Serial? %s", strcmp(version.c_str(), "") != 0 ? "Yes" : "No");
+	if(strcmp(version.c_str(), "") != 0){				// Close serial connection 
+		Serial1.end();								 	// If we returned something ...
+		sysStatus.set_sensorType(2);						 	// ... take note that we are a magnetometer now.		
+		Log.info("Response from Serial. Setting device type to \"Magnetometer\"");
+		Particle.publish("Magnetometer Sensor Detected. Setting Sensor Type.", "2 (Magnetometer)", PRIVATE);
+	} else {
+		Log.info("No Response from Serial. Not changing device sensor type.");
+	}
+  }
+  char configData[256]; 							 	 // Store the configuration data in this character array - not global
+  snprintf(configData, sizeof(configData), "{\"timestamp\":%lu000, \"power\":\"%s\", \"lowPowerMode\":\"%s\", \"timeZone\":\"" + sysStatus.get_timeZoneStr() + "\", \"open\":%i, \"close\":%i, \"sensorType\":%i, \"verbose\":\"%s\", \"connecttime\":%i, \"battery\":%4.2f}", Time.now(), sysStatus.get_solarPowerMode() ? "Solar" : "Utility", sysStatus.get_lowPowerMode() ? "Low Power" : "Not Low Power", sysStatus.get_openTime(), sysStatus.get_closeTime(), sysStatus.get_sensorType(), sysStatus.get_verboseMode() ? "Verbose" : "Not Verbose", sysStatus.get_lastConnectionDuration(), current.get_stateOfCharge());
+  PublishQueuePosix::instance().publish("Send-Configuration", configData, PRIVATE | WITH_ACK);    // Send new configuration to FleetManager backend. (v1.4)
+  current.resetEverything();                             // If so, we need to Zero the counts for the new day
 }
 
 /**
@@ -477,25 +508,25 @@ inline void softDelay(uint32_t t) {
 inline String retrieveAssetFirmwareVersion() {
   switch(sysStatus.get_sensorType()) {
     case 0: {                                                /*** Pressure Sensor ***/
-		// set or retrieve pressure sensor's firmware version here
-		return "0.0";
+		  // set or retrieve pressure sensor's firmware version here
+		  return "0.0";
     } break;
     case 1:	{												 /*** PIR Sensor ***/
-		// set or retrieve PIR sensor's firmware version here
-		return "0.0";
-	} break;
+		  // set or retrieve PIR sensor's firmware version here
+		  return "0.0";
+	  } break;
     case 2: {												 /*** Magnetometer Sensor ***/
-		Serial1.begin(115200);								 // Open serial connection
-		waitFor(Serial1.available(), 10000); 				 // Make sure the serial monitor can connect
-		Serial1.print("*VER?");								 // Query magnetometer for its version
-		delay(1000); 							     		 // Make sure it has time to output
-		String version = Serial1.readString();		 		 // Read the output		 
-		Serial1.end();	
-		return version;							             // Close serial connection
+		  Serial1.begin(115200);								 // Open serial connection
+		  waitFor(Serial1.available(), 10000); 				 // Make sure the serial monitor can connect
+		  Serial1.print("*VER?");								 // Query magnetometer for its version
+		  delay(1000); 							     		 // Make sure it has time to output
+		  String version = Serial1.readString();		 		 // Read the output		 
+		  Serial1.end();	
+		  return version;							             // Close serial connection
     } break;
     case 3: {												 /*** Accelerometer Sensor ***/
-		// set or retrieve accelerometer sensor's firmware version here 
-		return "0.0";
+		  // set or retrieve accelerometer sensor's firmware version here 
+		  return "0.0";
     } break;
     default:
      	return "0.0";                                  		 // Default to 0.0
