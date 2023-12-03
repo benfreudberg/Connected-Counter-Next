@@ -508,33 +508,27 @@ inline void softDelay(uint32_t t) {
 inline String retrieveAssetFirmwareVersion() {
   switch(sysStatus.get_sensorType()) {
     case 0: {                                                /*** Pressure Sensor ***/
-		// set or retrieve pressure sensor's firmware version here
-		return "0.0";
+		  // set or retrieve pressure sensor's firmware version here
+		  return "0.0";
     } break;
     case 1:	{												 /*** PIR Sensor ***/
-		// set or retrieve PIR sensor's firmware version here
-		return "0.0";
-	} break;
+		  // set or retrieve PIR sensor's firmware version here
+		  return "0.0";
+	  } break;
     case 2: {												 /*** Magnetometer Sensor ***/
-		String version = "";  								 // Set version to "", we will check if this has changed later
-		Serial1.begin(115200);						    	 // Open serial connection  
-		Serial1.print("*VER?");						    	 // Query device for its Version	
-		Serial1.setTimeout(200);							 // Set a maximum timeout
-		version = Serial1.readString();
-		Log.info("Response from Serial? %s", strcmp(version.c_str(), "") != 0 ? "Yes" : "No");
-		if(strcmp(version.c_str(), "") != 0){				 // If we returned something ... 
-			Serial1.end();								 	 // Close Serial Connection
-			return version;
-		} else {
-			Log.info("No Response from Serial.");
-			return "0.0";
-		}
+		  Serial1.begin(115200);								 // Open serial connection
+		  waitFor(Serial1.available(), 10000); 				 // Make sure the serial monitor can connect
+		  Serial1.print("*VER?");								 // Query magnetometer for its version
+		  delay(1000); 							     		 // Make sure it has time to output
+		  String version = Serial1.readString();		 		 // Read the output		 
+		  Serial1.end();	
+		  return version;							             // Close serial connection
     } break;
     case 3: {												 /*** Accelerometer Sensor ***/
-      	// set or retrieve accelerometer sensor's firmware version here 
-	  	return "0.0";
+		  // set or retrieve accelerometer sensor's firmware version here 
+		  return "0.0";
     } break;
     default:
-      return "0.0";                                  		 // Default to 0.0
+     	return "0.0";                                  		 // Default to 0.0
   }
 }
