@@ -50,7 +50,9 @@ void UbidotsHandler(const char *event, const char *data);
 bool isParkOpen(bool verbose);						  // Simple function returns whether park is open or not
 void dailyCleanup();								  // Reset each morning
 void softDelay(uint32_t t);							  // function for a safe delay()
-String retrieveAssetFirmwareVersion();                // Keeps track of state machine changes - for debugging
+String retrieveAssetFirmwareVersion();                // Communicates with an attached asset to retrieve the firmware version for the asset
+void performAssetFactoryReset(); 					  // Communicates with an attached asset and triggers a factory reset if desired
+void checkIfSensorTypeNeedsUpdate();				  // Communicates with the attached asset to determine if sysStatus.sensorType needs to be updated.
 void recordCount();									  // Called from the main loop when a sensor is triggered
 
 // System Health Variables
@@ -135,9 +137,11 @@ void setup() {
   	Take_Measurements::instance().takeMeasurements(); // Populates values so you can read them before the hour
 
 	if (!digitalRead(BUTTON_PIN)) {				 	  // The user will press this button at startup to reset settings
-		Log.info("User button at startup - setting defaults");
+		Log.info("User button at startup - setting defaults and performing factory reset on connected asset");
 		state = CONNECTING_STATE;
-		sysStatus.initialize();                  	  // Make sure the device wakes up and connects - reset to defaults and exit low power mode
+		sysStatus.initialize();                  	  // Make sure the device wakes up and connects - reset to defaults, and exit low power mode
+  		checkIfSensorTypeNeedsUpdate();				  // Before resetting the asset, we need to check if the asset has been changed without the Boron's knowledge
+		performAssetFactoryReset();					  // Perform a factory reset on the attached asset
 	}
 
 	if (!Time.isValid()) {
@@ -468,22 +472,7 @@ void dailyCleanup() {
   if (sysStatus.get_solarPowerMode() || current.get_stateOfCharge() <= 65) {     	// If Solar or if the battery is being discharged
     sysStatus.set_lowPowerMode(true);
   }
-  if(sysStatus.get_sensorType() != 2){			// Execute a response check on the serial line ONLY if the device is not already a Magnetometer
-	String version = "";  						    	// Set version to empty string, we will check if this has changed later
-  	Serial1.begin(115200);						    	// Open serial connection
-  	Serial1.print("*VER?");						    	// Query device for its Version
-	Serial1.setTimeout(200);							// Set a maximum timeout
-	version = Serial1.readString();
-	Log.info("Response from Serial? %s", strcmp(version.c_str(), "") != 0 ? "Yes" : "No");
-	if(strcmp(version.c_str(), "") != 0){				// Close serial connection 
-		Serial1.end();								 	// If we returned something ...
-		sysStatus.set_sensorType(2);						 	// ... take note that we are a magnetometer now.		
-		Log.info("Response from Serial. Setting device type to \"Magnetometer\"");
-		Particle.publish("Magnetometer Sensor Detected. Setting Sensor Type.", "2 (Magnetometer)", PRIVATE);
-	} else {
-		Log.info("No Response from Serial. Not changing device sensor type.");
-	}
-  }
+  checkIfSensorTypeNeedsUpdate();						 // Check if we have changed our asset recently and need to update sysStatus.sensorType
   char configData[256]; 							 	 // Store the configuration data in this character array - not global
   snprintf(configData, sizeof(configData), "{\"timestamp\":%lu000, \"power\":\"%s\", \"lowPowerMode\":\"%s\", \"timeZone\":\"" + sysStatus.get_timeZoneStr() + "\", \"open\":%i, \"close\":%i, \"sensorType\":%i, \"verbose\":\"%s\", \"connecttime\":%i, \"battery\":%4.2f}", Time.now(), sysStatus.get_solarPowerMode() ? "Solar" : "Utility", sysStatus.get_lowPowerMode() ? "Low Power" : "Not Low Power", sysStatus.get_openTime(), sysStatus.get_closeTime(), sysStatus.get_sensorType(), sysStatus.get_verboseMode() ? "Verbose" : "Not Verbose", sysStatus.get_lastConnectionDuration(), current.get_stateOfCharge());
   PublishQueuePosix::instance().publish("Send-Configuration", configData, PRIVATE | WITH_ACK);    // Send new configuration to FleetManager backend. (v1.4)
@@ -508,27 +497,91 @@ inline void softDelay(uint32_t t) {
 inline String retrieveAssetFirmwareVersion() {
   switch(sysStatus.get_sensorType()) {
     case 0: {                                                /*** Pressure Sensor ***/
-		  // set or retrieve pressure sensor's firmware version here
-		  return "0.0";
+		// set or retrieve pressure sensor's firmware version here
+		return "0.0";
     } break;
     case 1:	{												 /*** PIR Sensor ***/
-		  // set or retrieve PIR sensor's firmware version here
-		  return "0.0";
-	  } break;
+		// set or retrieve PIR sensor's firmware version here
+		return "0.0";
+	} break;
     case 2: {												 /*** Magnetometer Sensor ***/
-		  Serial1.begin(115200);								 // Open serial connection
-		  waitFor(Serial1.available(), 10000); 				 // Make sure the serial monitor can connect
-		  Serial1.print("*VER?");								 // Query magnetometer for its version
-		  delay(1000); 							     		 // Make sure it has time to output
-		  String version = Serial1.readString();		 		 // Read the output		 
-		  Serial1.end();	
-		  return version;							             // Close serial connection
+		String version = "";  								 // Set version to "", we will check if this has changed later
+		Serial1.begin(115200);						    	 // Open serial connection  
+		Serial1.print("*VER?");						    	 // Query device for its Version	
+		Serial1.setTimeout(200);							 // Set a maximum timeout
+		version = Serial1.readString();
+		Log.info("Response from Serial? %s", strcmp(version.c_str(), "") != 0 ? "Yes" : "No");
+		if(strcmp(version.c_str(), "") != 0){				 // If we returned something ... 
+			Serial1.end();								 	 // Close Serial Connection
+			return version;
+		} else {
+			Log.info("No Response from Serial.");
+			return "0.0";
+		}
     } break;
     case 3: {												 /*** Accelerometer Sensor ***/
-		  // set or retrieve accelerometer sensor's firmware version here 
-		  return "0.0";
+      	// set or retrieve accelerometer sensor's firmware version here 
+	  	return "0.0";
     } break;
     default:
-     	return "0.0";                                  		 // Default to 0.0
+      return "0.0";                                  		 // Default to 0.0
+  }
+}
+
+/**
+ * @brief performAssetFactoryReset communicates with an attached asset and triggers a factory reset
+ */
+inline void performAssetFactoryReset() {
+  switch(sysStatus.get_sensorType()) {
+    case 0: {                                                /*** Pressure Sensor ***/
+		// Execute a factory reset on the Pressure Sensor here if needed
+    } break;
+    case 1:	{												 /*** PIR Sensor ***/
+		// Execute a factory reset on the PIR Sensor here if needed
+	} break;
+    case 2: {												 /*** Magnetometer Sensor ***/
+		Log.info("Performing a factory reset on the Magnetometer ...");
+		String response = "";  								 // Set response to "", we will check if this has changed later
+		Serial1.begin(115200);						    	 // Open serial connection  
+		Serial1.print("*RESET");						     // Query device to begin factory reset	
+		Serial1.setTimeout(200);							 // Set a maximum timeout
+		response = Serial1.readString();
+		if(strcmp(response.c_str(), "") != 0){				 // If we returned something ... 
+			Serial1.end();								 	 // Close Serial Connection
+			Log.info("Factory reset completed!");
+		} else {
+			Log.info("No Response from Serial. Did not perform a factory reset.");
+		}								 	     // Close Serial Connection
+    } break;
+    case 3: {												 /*** Accelerometer Sensor ***/
+      	// Execute a factory reset on the Accelerometer Sensor here if needed 
+    } break;
+	default: 
+		Log.info("Could not determine which asset is connected.");
+  }
+}
+
+/**
+ * @brief checkIfSensorTypeNeedsUpdate communicates with the attached asset to determine if sysStatus.sensorType needs to be updated.
+ */
+inline void checkIfSensorTypeNeedsUpdate() {
+  /* Check if we need to update our type to 2 (Magnetometer) */
+  if(sysStatus.get_sensorType() != 2){			// Execute a response check on the serial line ONLY if the device is not already a Magnetometer
+    String version = "";  						    	// Set version to empty string, we will check if this has changed later
+    Serial1.begin(115200);						    	// Open serial connection
+    Serial1.print("*VER?");						    	// Query device for its Version
+    Serial1.setTimeout(200);							// Set a maximum timeout
+    version = Serial1.readString();
+    Log.info("Response from Serial? %s", strcmp(version.c_str(), "") != 0 ? "Yes" : "No");
+    if(strcmp(version.c_str(), "") != 0){				// Close serial connection 
+      Serial1.end();								 	// If we returned something ...
+      sysStatus.set_sensorType(2);						 	// ... take note that we are a magnetometer now by setting sysStatus.sensorType.		
+      Log.info("Response from Serial. Setting sensor type to \"Magnetometer\"");
+      Particle.publish("Magnetometer Sensor Detected. Setting Sensor Type.", "2 (Magnetometer)", PRIVATE);
+    } else {
+      Log.info("No Response from Serial. Not changing sensor type.");
+    }
+  } else {
+	Log.info("Sensor type is up to date! sensorType = %i", sysStatus.get_sensorType());
   }
 }
