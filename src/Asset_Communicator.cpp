@@ -133,7 +133,7 @@ void Asset_Communicator::performAssetFactoryReset() {
 	  } break;
     case 2: {												                              /*** Magnetometer Sensor ***/
 		Log.info("Performing a factory reset on the Magnetometer ..."); 
-		Asset_Communicator::instance().sendMessage("*RESET");						    // Query device to begin factory reset	
+		Asset_Communicator::instance().sendMessage("*RES");						    // Query device to begin factory reset	
 		if(Asset_Communicator::instance().receiveMessage(response, sizeof(response))){	// If we returned something ... 
 			Log.info("Factory reset completed! Response from device: %s", response);
 		} else {
