@@ -86,7 +86,7 @@ unsigned long stayAwakeTimeStamp = 0UL;               // Timestamps for our timi
 unsigned long stayAwake = stayAwakeLong;              // Stores the time we need to wait before napping
 
 // Testing variables
-bool dailyCleanupTestExecuted = false;
+// bool dailyCleanupTestExecuted = false;
 
 void setup() {
 
@@ -133,11 +133,13 @@ void setup() {
 
   	Take_Measurements::instance().takeMeasurements(); // Populates values so you can read them before the hour
 
+	Asset_Communicator::instance().setup();       	  // Initialize the Asset_Communicator class
+	softDelay(2000);
+
 	if (!digitalRead(BUTTON_PIN)) {				 	  // The user will press this button at startup to reset settings
 		Log.info("User button at startup - setting defaults and performing factory reset on connected asset");
 		state = CONNECTING_STATE;
 		sysStatus.initialize();                  	  // Make sure the device wakes up and connects - reset to defaults, and exit low power mode
-  		Asset_Communicator::instance().checkIfSensorTypeNeedsUpdate();				  // Before resetting the asset, we need to check if the asset has been changed without the Boron's knowledge
 		Asset_Communicator::instance().performAssetFactoryReset();					  // Perform a factory reset on the attached asset
 	}
 
@@ -173,17 +175,16 @@ void setup() {
 	isParkOpen(true);
 
 	Alert_Handling::instance().setup();
-	Asset_Communicator::instance().setup();       	  // Initialize the Asset_Communicator class
 	Record_Counts::instance().setup();
 }
 
 void loop() {
 	switch (state) {
 		case IDLE_STATE: {						      // Unlike most sketches - nodes spend most time in sleep and only transit IDLE once or twice each period
-			if(!dailyCleanupTestExecuted){
-				dailyCleanup();
-				dailyCleanupTestExecuted = true;
-			}
+			// if(!dailyCleanupTestExecuted){
+			// 	dailyCleanup();
+			// 	dailyCleanupTestExecuted = true;
+			// }
 			if (state != oldState) publishStateTransition();
 			if (sysStatus.get_lowPowerMode() && (millis() - stayAwakeTimeStamp) > stayAwake) state = SLEEPING_STATE;         // When in low power mode, we can nap between taps
 			if (isParkOpen(false) && Time.hour() != Time.hour(sysStatus.get_lastReport())) state = REPORTING_STATE;          // We want to report on the hour but not after bedtime
@@ -286,7 +287,7 @@ void loop() {
   		} break;
 
   		case CONNECTING_STATE:{                                                // Will connect - or not and head back to the Idle state - We are using a 3,5, 7 minute back-off approach as recommended by Particle
-			dailyCleanupTestExecuted = false;								   // For testing Daily Cleanup in the Idle State
+			// dailyCleanupTestExecuted = false;								   // For testing Daily Cleanup in the Idle State
 			static State retainedOldState;                                     // Keep track for where to go next (depends on whether we were called from Reporting)
 			static unsigned long connectionStartTimeStamp;                     // Time in Millis that helps us know how long it took to connect
 			char data[64];                                                     // Holder for message strings
