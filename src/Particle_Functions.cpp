@@ -2,6 +2,7 @@
 #include "device_pinout.h"
 #include "Take_Measurements.h"
 #include "MyPersistentData.h"
+#include "Asset_Communicator.h"
 #include "Particle_Functions.h"
 #include "JsonParserGeneratorRK.h"
 #include "PublishQueuePosixRK.h"
@@ -60,6 +61,7 @@ int Particle_Functions::jsonFunctionParser(String command) {
   char * pEND;
   char messaging[64]=" ";
   bool success = true;
+  bool invalidCommand = false;
 
 	JsonParserStatic<1024, 80> jp;	// Global parser that supports up to 256 bytes of data and 20 tokens
 
@@ -233,23 +235,27 @@ int Particle_Functions::jsonFunctionParser(String command) {
       }
     }
 
-    // execute a string command on connected asset via Serial.
+    // Interacts with the SCPI interface on a connected asset via Serial1.
     else if (function == "serialAssetCommand") {
-      // Format - function - serialAssetCommand, variables - any string
-      // Test - {"cmd":[{"var":"CONF:BUF","fn":"serialAssetCommand"}]}
-      Serial1.begin(115200);
-      while (!Serial1.available()){
-          delay(10); // Wait until serial connection is established
+      char response[256];
+      Asset_Communicator::instance().sendMessage(variable);
+      if(Asset_Communicator::instance().receiveMessage(response, sizeof(response))){
+        snprintf(messaging,sizeof(messaging),"Executed asset command: " + variable + " Response: " + response);
+      } else {
+        if (strstr(variable, "?") != nullptr) {
+          snprintf(messaging,sizeof(messaging),"Query " + variable + " failed. No response.");
+          success = false;
+        } else {
+          snprintf(messaging,sizeof(messaging),"Executed asset command: " + variable);
+        }
       }
-      delay(1000);  // Make sure the serial monitor can connect
-      Serial1.printlnf(variable);
-      snprintf(messaging,sizeof(messaging),"Executed asset command:" + variable);
     }
 
     // What if none of these functions are recognized
     else {
       snprintf(messaging,sizeof(messaging),"%s is not a valid command", function.c_str());
       success = false;
+      invalidCommand = true;
     }
 
     if (!(strncmp(messaging," ",1) == 0)) {
@@ -263,18 +269,25 @@ int Particle_Functions::jsonFunctionParser(String command) {
     snprintf(configData, sizeof(configData), "{\"timestamp\":%lu000, \"power\":\"%s\", \"lowPowerMode\":\"%s\", \"timeZone\":\"" + sysStatus.get_timeZoneStr() + "\", \"open\":%i, \"close\":%i, \"sensorType\":%i, \"verbose\":\"%s\", \"connecttime\":%i, \"battery\":%4.2f}", Time.now(), sysStatus.get_solarPowerMode() ? "Solar" : "Utility", sysStatus.get_lowPowerMode() ? "Low Power" : "Not Low Power", sysStatus.get_openTime(), sysStatus.get_closeTime(), sysStatus.get_sensorType(), sysStatus.get_verboseMode() ? "Verbose" : "Not Verbose", sysStatus.get_lastConnectionDuration(), current.get_stateOfCharge());
     PublishQueuePosix::instance().publish("Send-Configuration", configData, PRIVATE | WITH_ACK);                                    // Send new configuration to FleetManager backend. (v1.4)
   }
-  if(success == true){
+  if(success == true){           // send the Success slack notification if the command was not recognized
     char data[128];
     snprintf(data, sizeof(data), "{\"commands\":%i,\"context\":\"%s\",\"timestamp\":%lu000 }", 1, function.c_str(), Time.now());    // Send 1 (Execution Success) to the 'commands' Synthetic Variable
     PublishQueuePosix::instance().publish("Ubidots_Command_Hook", data, PRIVATE);
     snprintf(data, sizeof(data), "{\"commands\":%i,\"context\":\"%s\",\"timestamp\":%lu000 }", -10, function.c_str(), Time.now());  // Send -10, resolve any events
     PublishQueuePosix::instance().publish("Ubidots_Command_Hook", data, PRIVATE);
   } else {
-    char data[128];  
-    snprintf(data, sizeof(data), "{\"commands\":%i,\"context\":\"%s\",\"timestamp\":%lu000 }", 0, function.c_str(), Time.now());    // Send 0 (Execution Failure) to the 'commands' Synthetic Variable
-    PublishQueuePosix::instance().publish("Ubidots_Command_Hook", data, PRIVATE);
-    snprintf(data, sizeof(data), "{\"commands\":%i,\"context\":\"%s\",\"timestamp\":%lu000 }", -10, function.c_str(), Time.now());  // Send -10, resolve any events
-    PublishQueuePosix::instance().publish("Ubidots_Command_Hook", data, PRIVATE);
+    char data[128];
+    if(invalidCommand == true){  // send the Invalid Command slack notification if the command was not recognized
+      snprintf(data, sizeof(data), "{\"commands\":%i,\"context\":\"%s\",\"timestamp\":%lu000 }", 2, function.c_str(), Time.now());    // Send 2 (Invalid Command) to the 'commands' Synthetic Variable
+      PublishQueuePosix::instance().publish("Ubidots_Command_Hook", data, PRIVATE);
+      snprintf(data, sizeof(data), "{\"commands\":%i,\"context\":\"%s\",\"timestamp\":%lu000 }", -10, function.c_str(), Time.now());  // Send -10, resolve any events
+      PublishQueuePosix::instance().publish("Ubidots_Command_Hook", data, PRIVATE);
+    } else {                     // send the Execution Failure slack notification if the command was not recognized
+      snprintf(data, sizeof(data), "{\"commands\":%i,\"context\":\"%s\",\"timestamp\":%lu000 }", 0, function.c_str(), Time.now());    // Send 0 (Execution Failure) to the 'commands' Synthetic Variable
+      PublishQueuePosix::instance().publish("Ubidots_Command_Hook", data, PRIVATE);
+      snprintf(data, sizeof(data), "{\"commands\":%i,\"context\":\"%s\",\"timestamp\":%lu000 }", -10, function.c_str(), Time.now());  // Send -10, resolve any events
+      PublishQueuePosix::instance().publish("Ubidots_Command_Hook", data, PRIVATE);
+    }
   }
 
   return success;
