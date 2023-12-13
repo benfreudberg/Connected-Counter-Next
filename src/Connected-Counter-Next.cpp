@@ -23,6 +23,7 @@
 // v1.4 - Added publishing to the Update-Device, Send-Configuration, and Device-Command Particle Integration Hooks
 // v1.4.1 - Added Serial SCPI Query, automatically updates a device type to 2 (Magnetometer) if a response is received.
 // v1.4.2 - Fixed bug where SCPI queries falsely triggered altomatic updates added in v1.4.1
+// v1.5 - Added the Serial1_Listener and Asset_Communicator classes and fully implemented all Serial1 related functionality including Particle Functions. Added Slack notification for invalid commands.
 
 // Particle Libraries
 #include "Particle.h"                                 // Because it is a CPP file not INO
@@ -36,8 +37,9 @@
 #include "Particle_Functions.h"						  // Where we put all the functions specific to Particle
 #include "Alert_Handling.h"
 #include "Record_Counts.h"
+#include "Asset_Communicator.h"
 
-#define FIRMWARE_RELEASE "1.4"						  // Will update this and report with stats
+#define FIRMWARE_RELEASE "1.5"						  // Will update this and report with stats
 
 PRODUCT_VERSION(1);									  // For now, we are putting nodes and gateways in the same product group - need to deconflict #
 
@@ -50,9 +52,6 @@ void UbidotsHandler(const char *event, const char *data);
 bool isParkOpen(bool verbose);						  // Simple function returns whether park is open or not
 void dailyCleanup();								  // Reset each morning
 void softDelay(uint32_t t);							  // function for a safe delay()
-String retrieveAssetFirmwareVersion();                // Communicates with an attached asset to retrieve the firmware version for the asset
-void performAssetFactoryReset(); 					  // Communicates with an attached asset and triggers a factory reset if desired
-void checkIfSensorTypeNeedsUpdate();				  // Communicates with the attached asset to determine if sysStatus.sensorType needs to be updated.
 void recordCount();									  // Called from the main loop when a sensor is triggered
 
 // System Health Variables
@@ -110,8 +109,6 @@ void setup() {
 
 	sysStatus.setup();								  // Initialize persistent storage
 	sysStatus.set_firmwareRelease(FIRMWARE_RELEASE);
-	sysStatus.set_assetFirmwareRelease(retrieveAssetFirmwareVersion());
-
 	current.setup();
 	current.set_alertCode(0);						  // Clear any alert codes
 
@@ -136,12 +133,14 @@ void setup() {
 
   	Take_Measurements::instance().takeMeasurements(); // Populates values so you can read them before the hour
 
+	Asset_Communicator::instance().setup();       	  // Initialize the Asset_Communicator class
+	softDelay(2000);
+
 	if (!digitalRead(BUTTON_PIN)) {				 	  // The user will press this button at startup to reset settings
 		Log.info("User button at startup - setting defaults and performing factory reset on connected asset");
 		state = CONNECTING_STATE;
 		sysStatus.initialize();                  	  // Make sure the device wakes up and connects - reset to defaults, and exit low power mode
-  		checkIfSensorTypeNeedsUpdate();				  // Before resetting the asset, we need to check if the asset has been changed without the Boron's knowledge
-		performAssetFactoryReset();					  // Perform a factory reset on the attached asset
+		Asset_Communicator::instance().performAssetFactoryReset();					  // Perform a factory reset on the attached asset
 	}
 
 	if (!Time.isValid()) {
@@ -158,7 +157,6 @@ void setup() {
 
 	attachInterrupt(BUTTON_PIN,userSwitchISR,FALLING);// We may need to monitor the user switch to change behaviours / modes
 	attachInterrupt(INT_PIN,sensorISR,RISING);        // We need to monitor the sensor for activity
-
 
 	if (state == INITIALIZATION_STATE) {
 		if(sysStatus.get_lowPowerMode()) {
@@ -472,7 +470,7 @@ void dailyCleanup() {
   if (sysStatus.get_solarPowerMode() || current.get_stateOfCharge() <= 65) {     	// If Solar or if the battery is being discharged
     sysStatus.set_lowPowerMode(true);
   }
-  checkIfSensorTypeNeedsUpdate();						 // Check if we have changed our asset recently and need to update sysStatus.sensorType
+  Asset_Communicator::instance().setup();						 // Check if we have changed our asset recently and need to update sysStatus.sensorType
   char configData[256]; 							 	 // Store the configuration data in this character array - not global
   snprintf(configData, sizeof(configData), "{\"timestamp\":%lu000, \"power\":\"%s\", \"lowPowerMode\":\"%s\", \"timeZone\":\"" + sysStatus.get_timeZoneStr() + "\", \"open\":%i, \"close\":%i, \"sensorType\":%i, \"verbose\":\"%s\", \"connecttime\":%i, \"battery\":%4.2f}", Time.now(), sysStatus.get_solarPowerMode() ? "Solar" : "Utility", sysStatus.get_lowPowerMode() ? "Low Power" : "Not Low Power", sysStatus.get_openTime(), sysStatus.get_closeTime(), sysStatus.get_sensorType(), sysStatus.get_verboseMode() ? "Verbose" : "Not Verbose", sysStatus.get_lastConnectionDuration(), current.get_stateOfCharge());
   PublishQueuePosix::instance().publish("Send-Configuration", configData, PRIVATE | WITH_ACK);    // Send new configuration to FleetManager backend. (v1.4)
@@ -487,101 +485,4 @@ void dailyCleanup() {
  */
 inline void softDelay(uint32_t t) {
   for (uint32_t ms = millis(); millis() - ms < t; Particle.process());  			//  safer than a delay()
-}
-
-/**
- * @brief retrieveAssetFirmwareVersion queries a sensor connected to this particle device,
- * asking for its version. Sets the the returned version in MyPersistentData.cpp
- * 
- */
-inline String retrieveAssetFirmwareVersion() {
-  switch(sysStatus.get_sensorType()) {
-    case 0: {                                                /*** Pressure Sensor ***/
-		// set or retrieve pressure sensor's firmware version here
-		return "0.0";
-    } break;
-    case 1:	{												 /*** PIR Sensor ***/
-		// set or retrieve PIR sensor's firmware version here
-		return "0.0";
-	} break;
-    case 2: {												 /*** Magnetometer Sensor ***/
-		String version = "";  								 // Set version to "", we will check if this has changed later
-		Serial1.begin(115200);						    	 // Open serial connection  
-		Serial1.print("*VER?");						    	 // Query device for its Version	
-		Serial1.setTimeout(200);							 // Set a maximum timeout
-		version = Serial1.readString();
-		Log.info("Response from Serial? %s", strcmp(version.c_str(), "") != 0 ? "Yes" : "No");
-		if(strcmp(version.c_str(), "") != 0){				 // If we returned something ... 
-			Serial1.end();								 	 // Close Serial Connection
-			return version;
-		} else {
-			Log.info("No Response from Serial.");
-			return "0.0";
-		}
-    } break;
-    case 3: {												 /*** Accelerometer Sensor ***/
-      	// set or retrieve accelerometer sensor's firmware version here 
-	  	return "0.0";
-    } break;
-    default:
-      return "0.0";                                  		 // Default to 0.0
-  }
-}
-
-/**
- * @brief performAssetFactoryReset communicates with an attached asset and triggers a factory reset
- */
-inline void performAssetFactoryReset() {
-  switch(sysStatus.get_sensorType()) {
-    case 0: {                                                /*** Pressure Sensor ***/
-		// Execute a factory reset on the Pressure Sensor here if needed
-    } break;
-    case 1:	{												 /*** PIR Sensor ***/
-		// Execute a factory reset on the PIR Sensor here if needed
-	} break;
-    case 2: {												 /*** Magnetometer Sensor ***/
-		Log.info("Performing a factory reset on the Magnetometer ...");
-		String response = "";  								 // Set response to "", we will check if this has changed later
-		Serial1.begin(115200);						    	 // Open serial connection  
-		Serial1.print("*RESET");						     // Query device to begin factory reset	
-		Serial1.setTimeout(200);							 // Set a maximum timeout
-		response = Serial1.readString();
-		if(strcmp(response.c_str(), "") != 0){				 // If we returned something ... 
-			Serial1.end();								 	 // Close Serial Connection
-			Log.info("Factory reset completed!");
-		} else {
-			Log.info("No Response from Serial. Did not perform a factory reset.");
-		}								 	     // Close Serial Connection
-    } break;
-    case 3: {												 /*** Accelerometer Sensor ***/
-      	// Execute a factory reset on the Accelerometer Sensor here if needed 
-    } break;
-	default: 
-		Log.info("Could not determine which asset is connected.");
-  }
-}
-
-/**
- * @brief checkIfSensorTypeNeedsUpdate communicates with the attached asset to determine if sysStatus.sensorType needs to be updated.
- */
-inline void checkIfSensorTypeNeedsUpdate() {
-  /* Check if we need to update our type to 2 (Magnetometer) */
-  if(sysStatus.get_sensorType() != 2){			// Execute a response check on the serial line ONLY if the device is not already a Magnetometer
-    String version = "";  						    	// Set version to empty string, we will check if this has changed later
-    Serial1.begin(115200);						    	// Open serial connection
-    Serial1.print("*VER?");						    	// Query device for its Version
-    Serial1.setTimeout(200);							// Set a maximum timeout
-    version = Serial1.readString();
-    Log.info("Response from Serial? %s", strcmp(version.c_str(), "") != 0 ? "Yes" : "No");
-    if(strcmp(version.c_str(), "") != 0){				// Close serial connection 
-      Serial1.end();								 	// If we returned something ...
-      sysStatus.set_sensorType(2);						 	// ... take note that we are a magnetometer now by setting sysStatus.sensorType.		
-      Log.info("Response from Serial. Setting sensor type to \"Magnetometer\"");
-      Particle.publish("Magnetometer Sensor Detected. Setting Sensor Type.", "2 (Magnetometer)", PRIVATE);
-    } else {
-      Log.info("No Response from Serial. Not changing sensor type.");
-    }
-  } else {
-	Log.info("Sensor type is up to date! sensorType = %i", sysStatus.get_sensorType());
-  }
 }
