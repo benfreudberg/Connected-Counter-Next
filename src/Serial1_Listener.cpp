@@ -33,7 +33,6 @@ bool Serial1_Listener::getResponse(char *response, int responseSize) {       // 
         int numBytes = Serial1.readBytesUntil('\n', buffer, sizeof(buffer) - 1);
         if (numBytes > 0) {
             buffer[numBytes] = 0;
-            Log.info("Received %d bytes: %s", numBytes, buffer);
             strncpy(response, buffer, responseSize);                         // Copy the response to the response buffer
             buffer[0] = 0;                                                   // Clear the buffer
             // Clear any remaining data in the Serial1 output buffer
@@ -44,7 +43,7 @@ bool Serial1_Listener::getResponse(char *response, int responseSize) {       // 
             return true;                                                     // Return true to indicate that there was a response
         }
         else {
-            Log.info("Received no bytes");
+            Log.info("Serial1_Listener received no bytes");
             return false;
         }
     }
