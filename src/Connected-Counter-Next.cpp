@@ -470,7 +470,7 @@ void dailyCleanup() {
   if (sysStatus.get_solarPowerMode() || current.get_stateOfCharge() <= 65) {     	// If Solar or if the battery is being discharged
     sysStatus.set_lowPowerMode(true);
   }
-  Asset_Communicator::instance().checkIfSensorTypeNeedsUpdate();						 // Check if we have changed our asset recently and need to update sysStatus.sensorType
+  Asset_Communicator::instance().setup();						 // Check if we have changed our asset recently and need to update sysStatus.sensorType
   char configData[256]; 							 	 // Store the configuration data in this character array - not global
   snprintf(configData, sizeof(configData), "{\"timestamp\":%lu000, \"power\":\"%s\", \"lowPowerMode\":\"%s\", \"timeZone\":\"" + sysStatus.get_timeZoneStr() + "\", \"open\":%i, \"close\":%i, \"sensorType\":%i, \"verbose\":\"%s\", \"connecttime\":%i, \"battery\":%4.2f}", Time.now(), sysStatus.get_solarPowerMode() ? "Solar" : "Utility", sysStatus.get_lowPowerMode() ? "Low Power" : "Not Low Power", sysStatus.get_openTime(), sysStatus.get_closeTime(), sysStatus.get_sensorType(), sysStatus.get_verboseMode() ? "Verbose" : "Not Verbose", sysStatus.get_lastConnectionDuration(), current.get_stateOfCharge());
   PublishQueuePosix::instance().publish("Send-Configuration", configData, PRIVATE | WITH_ACK);    // Send new configuration to FleetManager backend. (v1.4)
