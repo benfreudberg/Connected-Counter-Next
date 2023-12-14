@@ -20,7 +20,6 @@ Asset_Communicator::~Asset_Communicator() {
 
 void Asset_Communicator::setup() {
     Serial1_Listener::instance().setup();    // Initialize the Serial1_Listener
-    waitFor(Serial1.available, 1000);
     /** Initialize other listeners here if needed **/
     Asset_Communicator::instance().checkIfSensorTypeNeedsUpdate();  // We need to check if the asset has been changed without the Boron's knowledge
     sysStatus.set_assetFirmwareRelease(Asset_Communicator::instance().retrieveAssetFirmwareVersion());

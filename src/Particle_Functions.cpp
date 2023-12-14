@@ -59,7 +59,7 @@ int Particle_Functions::jsonFunctionParser(String command) {
 	String variable;
 	String function;
   char * pEND;
-  char messaging[64]=" ";
+  char messaging[128]=" ";
   bool success = true;
   bool invalidCommand = false;
 

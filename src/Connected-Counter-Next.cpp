@@ -24,6 +24,7 @@
 // v1.4.1 - Added Serial SCPI Query, automatically updates a device type to 2 (Magnetometer) if a response is received.
 // v1.4.2 - Fixed bug where SCPI queries falsely triggered altomatic updates added in v1.4.1
 // v1.5 - Added the Serial1_Listener and Asset_Communicator classes and fully implemented all Serial1 related functionality including Particle Functions. Added Slack notification for invalid commands.
+// v1.5.1 - Fixed bugs relating to improper messages sent via the serialAssetCommand particle function. Implemented a safe delay in Serial1_Listener that ensures the sensor has time to print to Serial1
 
 // Particle Libraries
 #include "Particle.h"                                 // Because it is a CPP file not INO

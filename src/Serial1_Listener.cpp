@@ -27,7 +27,9 @@ void Serial1_Listener::loop() {
 }
 
 bool Serial1_Listener::getResponse(char *response, int responseSize) {       // This function will return the response from the Serial1 device
-    waitFor(Serial1.available, 1000);                                        // Wait here until there is data available to read - takes the device a beat to respond
+                                 
+    unsigned long readStart = millis();   // Safely wait here until there is data available to read - takes the device a beat to respond.
+    while(millis() - readStart < 2000){}; // Give plenty of time for the device to output.
 
     while(Serial1.available()) {                                             // Check if there is data available to read                 
         int numBytes = Serial1.readBytesUntil('\n', buffer, sizeof(buffer) - 1);
