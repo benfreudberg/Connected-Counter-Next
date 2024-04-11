@@ -25,6 +25,7 @@
 // v1.4.2 - Fixed bug where SCPI queries falsely triggered altomatic updates added in v1.4.1
 // v1.5 - Added the Serial1_Listener and Asset_Communicator classes and fully implemented all Serial1 related functionality including Particle Functions. Added Slack notification for invalid commands.
 // v1.5.1 - Fixed bugs relating to improper messages sent via the serialAssetCommand particle function. Implemented a safe delay in Serial1_Listener that ensures the sensor has time to print to Serial1
+// v.1.5.2 - Tried adding a litte more information on the daily reset issue.
 
 // Particle Libraries
 #include "Particle.h"                                 // Because it is a CPP file not INO
@@ -181,11 +182,7 @@ void setup() {
 
 void loop() {
 	switch (state) {
-		case IDLE_STATE: {						      // Unlike most sketches - nodes spend most time in sleep and only transit IDLE once or twice each period
-			// if(!dailyCleanupTestExecuted){
-			// 	dailyCleanup();
-			// 	dailyCleanupTestExecuted = true;
-			// }
+		case IDLE_STATE: {						      // This is the default state - we will be here most of the time when awake
 			if (state != oldState) publishStateTransition();
 			if (sysStatus.get_lowPowerMode() && (millis() - stayAwakeTimeStamp) > stayAwake) state = SLEEPING_STATE;         // When in low power mode, we can nap between taps
 			if (isParkOpen(false) && Time.hour() != Time.hour(sysStatus.get_lastReport())) state = REPORTING_STATE;          // We want to report on the hour but not after bedtime
@@ -466,7 +463,7 @@ void UbidotsHandler(const char *event, const char *data) {          // Looks at 
  */
 void dailyCleanup() {
   if (Particle.connected()) Particle.publish("Daily Cleanup","Running", PRIVATE);   // Make sure this is being run
-  Log.info("Running Daily Cleanup");
+  Log.info("Running Daily Cleanup based on (last = %i / current = %i)", Time.day(sysStatus.get_lastConnection()), Time.day());
   sysStatus.set_verboseMode(false);                                       			// Saves bandwidth - keep extra chatter off
   if (sysStatus.get_solarPowerMode() || current.get_stateOfCharge() <= 65) {     	// If Solar or if the battery is being discharged
     sysStatus.set_lowPowerMode(true);
