@@ -25,8 +25,8 @@
 // v1.4.2 - Fixed bug where SCPI queries falsely triggered altomatic updates added in v1.4.1
 // v1.5 - Added the Serial1_Listener and Asset_Communicator classes and fully implemented all Serial1 related functionality including Particle Functions. Added Slack notification for invalid commands.
 // v1.5.1 - Fixed bugs relating to improper messages sent via the serialAssetCommand particle function. Implemented a safe delay in Serial1_Listener that ensures the sensor has time to print to Serial1
-// v.1.5.2 - Tried adding a litte more information on the daily reset issue.
-// v1.5.2 - Fixed bugs relating to time functions - Reporting state conditionals now compare to local time. Fixed edge case where closeTime = 24 was causing issues with the final report of the night coming in at 1am.
+// v1.5.2 - Tried adding a litte more information on the daily reset issue.
+// v1.5.3 - Fixed bugs relating to time functions - Reporting state conditionals now compare to local time. Fixed edge case where closeTime = 24 was causing issues with the final report of the night coming in at 1am.
 
 // Particle Libraries
 #include "Particle.h"                                 // Because it is a CPP file not INO
