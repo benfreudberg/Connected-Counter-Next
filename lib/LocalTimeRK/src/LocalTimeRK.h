@@ -656,6 +656,10 @@ public:
     int8_t minute = 0;      //!< 0-59 minute
     int8_t second = 0;      //!< 0-59 second
     int8_t ignore = 0;      //!< Special case
+
+    static const LocalTimeHMS startOfDay; // LocalTimeHMS("00:00:00")
+    static const LocalTimeHMS endOfDay; // LocalTimeHMS("23:59:59")
+
 };
 
 /**
@@ -1218,6 +1222,9 @@ class LocalTimeConvert; // Forward declaration
 
 /**
  * @brief Class to hold a time range in local time in HH:MM:SS format
+ * 
+ * Added in 0.1.0 (2023-11-25): The ability for hmsStart to be > hmsEnd. In this case, the time range is assumed
+ * to cross midnight and to essentially be two separate ranges. 
  */
 class LocalTimeRange : public LocalTimeRestrictedDate {
 public: 
@@ -1226,7 +1233,7 @@ public:
      * 
      * This is start = 00:00:00, end = 23:59:59. The system clock does not have a concept of leap seconds.
      */
-    LocalTimeRange() : LocalTimeRestrictedDate(LocalTimeDayOfWeek::MASK_ALL), hmsStart(LocalTimeHMS("00:00:00")), hmsEnd(LocalTimeHMS("23:59:59")) {
+    LocalTimeRange() : LocalTimeRestrictedDate(LocalTimeDayOfWeek::MASK_ALL), hmsStart(LocalTimeHMS::startOfDay), hmsEnd(LocalTimeHMS::endOfDay) {
     }
 
     /**
@@ -1239,7 +1246,7 @@ public:
      * 23:59:59 is the end of the day.
      * 
      */
-    LocalTimeRange(LocalTimeHMS hmsStart, LocalTimeHMS hmsEnd = LocalTimeHMS("23:59:59")) : LocalTimeRestrictedDate(LocalTimeDayOfWeek::MASK_ALL), hmsStart(hmsStart), hmsEnd(hmsEnd) {
+    LocalTimeRange(LocalTimeHMS hmsStart, LocalTimeHMS hmsEnd = LocalTimeHMS::endOfDay) : LocalTimeRestrictedDate(LocalTimeDayOfWeek::MASK_ALL), hmsStart(hmsStart), hmsEnd(hmsEnd) {
     }
 
     /**
@@ -1260,19 +1267,29 @@ public:
      * @param dateRestriction Only use this time range on certain dates
      */
     LocalTimeRange(LocalTimeHMS hmsStart, LocalTimeRestrictedDate dateRestriction) : LocalTimeRestrictedDate(dateRestriction), hmsStart(hmsStart) {
-        hmsEnd = LocalTimeHMS("23:59:59");
+        hmsEnd = LocalTimeHMS::endOfDay;
     }
 
     /**
      * @brief Clear time range to all day, every day
      */
     void clear() {
-        hmsStart = LocalTimeHMS("00:00:00");
-        hmsEnd = LocalTimeHMS("23:59:59");
+        hmsStart = LocalTimeHMS::startOfDay;
+        hmsEnd = LocalTimeHMS::endOfDay;
 
         // Default to all days
         LocalTimeRestrictedDate::clear();
         LocalTimeRestrictedDate::withOnAllDays();
+    }
+
+    /**
+     * @brief Returns true if the time range is the whole day (00:00:00 to 23:59:59 inclusive)
+     * 
+     * @return true 
+     * @return false 
+     */
+    bool isWholeDay() const {
+        return (hmsStart == LocalTimeHMS::startOfDay) && (hmsEnd == LocalTimeHMS::endOfDay);
     }
 
     /**
@@ -1332,12 +1349,40 @@ public:
     bool inRange(LocalTimeValue localTimeValue) const {
         if (isValidDate(localTimeValue)) {
             LocalTimeHMS hms = localTimeValue.hms();
-            return (hmsStart <= hms) && (hms <= hmsEnd);
+            return isInRangeHMS(hms);
         }
         else {
             return false;
         }
     }
+
+    /**
+     * @brief Returns true if start >= end (range crosses midnight)
+     * 
+     * @return true 
+     * @return false 
+     */
+    bool rangeCrossesMidnight() const {
+        return hmsStart > hmsEnd;
+    }
+
+    /**
+     * @brief Returns true if the specified time is in the time range (ignoring date restrictions)
+     * 
+     * @return true 
+     * @return false 
+     */
+    bool isInRangeHMS(LocalTimeHMS hms) const {
+        if (!rangeCrossesMidnight()) {
+            return (hmsStart <= hms) && (hms <= hmsEnd);
+        }
+        else {
+            // Range crosses midnight (hmsEnd < hmsStart)
+            // Is not in range if hmsEnd < hms < hmsStart
+            return !((hmsEnd < hms) && (hms < hmsStart));
+        }
+    }
+    
 
     /**
      * @brief For restricted time ranges, get the last date (YMD) that this time range could be valid
@@ -1916,6 +1961,19 @@ public:
     void nextTimeList(std::initializer_list<LocalTimeHMS> hmsList);
 
 
+
+    /**
+     * @brief Moves the current time to the previous day
+     * 
+     * @param hms If specified, moves to that time of day (local time). If omitted, leaves the current time and only changes the date.
+     * 
+     * Upon completion, all fields are updated appropriately. For example:
+     * - time specifies the time_t of the new time at UTC
+     * - localTimeValue contains the broken-out values for the local time
+     * - isDST() return true if the new time is in daylight saving time
+     */
+    void prevDay(LocalTimeHMS hms = LocalTimeIgnoreHMS());
+
     /**
      * @brief Moves the current time to the next day
      * 
@@ -2404,6 +2462,93 @@ protected:
      */
     static LocalTime *_instance;
 };
+
+
+/**
+ * @brief Container for a date and time range. Specifies a date and time start and a date and time end
+ * 
+ * See also LocalTimeRange, which is a time range in the day, with optional date restrictions.
+ */
+class LocalDateTimeRange {
+public:
+    LocalDateTimeRange() {};
+
+    /**
+     * @brief Set the startTime and endTime (UTC) when constructing the object
+     * 
+     * @param startTime time_t UTC
+     * @param endTime time_t UTC
+     */
+    LocalDateTimeRange(time_t startTime, time_t endTime) : startTime(startTime), endTime(endTime) {};
+
+    /**
+     * @brief Construct an object with startTime and endTime in local time from string
+     * 
+     * @param startStr String time, local time, typically in "YYYY-MM-DD HH:MM:SS" format
+     * @param endStr String time, local time, typically in "YYYY-MM-DD HH:MM:SS" format
+     * @param config Optional timezone information, otherwise uses the system default timezone
+     */
+    LocalDateTimeRange(const char *startStr, const char *endStr, LocalTimePosixTimezone config = LocalTime::instance().getConfig()) {
+        withTimeStringLocal(startStr, endStr, config);    
+    }
+
+    /**
+     * @brief Set the startTime and endTime in local time from string
+     * 
+     * @param startStr String time, local time, typically in "YYYY-MM-DD HH:MM:SS" format
+     * @param endStr String time, local time, typically in "YYYY-MM-DD HH:MM:SS" format
+     * @param config Optional timezone information, otherwise uses the system default timezone
+     */
+    LocalDateTimeRange &withTimeStringLocal(const char *startStr, const char *endStr, LocalTimePosixTimezone config = LocalTime::instance().getConfig()) {
+        LocalTimeValue value;
+
+        value.fromString(startStr);
+        startTime = value.toUTC(config);
+
+        value.fromString(endStr);
+        endTime = value.toUTC(config);
+
+        return *this;
+    }
+
+
+    /**
+     * @brief Set the startTime and endTime in UTC from string
+     * 
+     * @param startStr String time UTC, typically in "YYYY-MM-DD HH:MM:SS" format (cannot include timezone in string)
+     * @param endStr String time UTC, typically in "YYYY-MM-DD HH:MM:SS" format (cannot include timezone in string)
+     */
+    LocalDateTimeRange &withTimeStringUTC(const char *startStr, const char *endStr) {
+        startTime = LocalTime::stringToTime(startStr);
+        endTime = LocalTime::stringToTime(endStr);
+        return *this;
+    }
+
+    /**
+     * @brief Returns true if startTime and endTime are valid (non-zero and startTime <= endTime)
+     * 
+     * @return true 
+     * @return false 
+     */
+    bool isValid() const { return (startTime != 0) && (endTime != 0) && (startTime <= endTime); };
+
+    /**
+     * @brief Determines if t (time_t in UTC) is in the range specified by this object
+     * 
+     * @param t time_t UTC to compare
+     * @return true 
+     * @return false 
+     * 
+     * Check is inclusive of startTime and exclusive of endTime: startTime <= t < endTime.
+     */
+    bool isInRange(time_t t) const { 
+        return isValid() && (startTime <= t) && (t < endTime); 
+    };
+
+    time_t startTime = 0;
+    time_t endTime = 0;
+};
+
 
 
 #endif /* __LOCALTIMERK_H */

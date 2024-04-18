@@ -407,7 +407,7 @@ For example, every 2 hours (00:00, 02:00, 04:00) local time.
 schedule.withHourOfDay(2);
 ```
 
-Every 2 hours, but starting at 01:30 local time (01:30, 03:30, 05:03, ...).
+Every 2 hours, but starting at 01:30 local time (01:30, 03:30, 05:30, ...).
 
 ```cpp
 schedule.withHourOfDay(2, LocalTimeRange(LocalTimeHMS("01:30:00"), LocalTimeHMS("23:59:59")));
@@ -2130,6 +2130,14 @@ It can also have any number of specific times in the day ("at 08:17:30 local tim
 
 
 ## Version history
+
+### 0.1.1 (2023-12-10)
+
+- Added LocalDateTimeRange as a container to hold a UTC time range.
+
+### 0.1.0 (2023-11-25)
+
+- Added support for LocalTimeRange that crosses midnight (9:00 PM to 5:00 AM, for example).
 
 ### 0.0.9 (2022-04-06)
 
