@@ -233,7 +233,7 @@ void loop() {
 		case REPORTING_STATE: {
 			if (state != oldState) publishStateTransition();
 
-			softDelay(2000); 												  // Short delay to ensure that localTime is correct before processing report
+			softDelay(5000); 												  // Short delay to ensure that localTime is correct before processing report
 																			  // This is needed because getLocalTimeHMS() is very slightly behind as a result of the boron startup sequence
 
 			uint8_t localHour = conv.getLocalTimeHMS().hour;				  // All conditionals will use this hour
