@@ -233,23 +233,21 @@ void loop() {
 		case REPORTING_STATE: {
 			if (state != oldState) publishStateTransition();
 
-			softDelay(5000); 												  // Short delay to ensure that localTime is correct before processing report
-																			  // This is needed because getLocalTimeHMS() is very slightly behind as a result of the boron startup sequence
+			uint8_t localMinute = conv.getLocalTimeHMS().minute;													// If this minute is 59 (happens often), we will raise the hour by 1
+			uint8_t localHour = localMinute == 59 ? conv.getLocalTimeHMS().hour + 1 : conv.getLocalTimeHMS().hour;	// All conditionals will use this hour
 
-			uint8_t localHour = conv.getLocalTimeHMS().hour;				  // All conditionals will use this hour
-			uint8_t localMinute = conv.getLocalTimeHMS().minute;			  // All conditionals will use this minute
-			uint8_t localSecond = conv.getLocalTimeHMS().second;			  // All conditionals will use this second
+			uint8_t midnightCorrectedLocalHour = localHour == 24 ? 0 : localHour;									// Hour 24 is never *actually* reached
 			uint8_t midnightCorrectedClosingHour = sysStatus.get_closeTime() == 24 ? 0 : sysStatus.get_closeTime();	// Hour 24 is never *actually* reached
 
 			char lastReportData[128];
-			snprintf(lastReportData, sizeof(lastReportData),"openTime = %d, localTimeHMS = %d:%d:%d, midnightCorrectedClosingHour = %d", sysStatus.get_openTime(), localHour, localMinute, localSecond, midnightCorrectedClosingHour);
+			snprintf(lastReportData, sizeof(lastReportData),"midnightCorrectedLocalHour = %d midnightCorrectedClosingHour = %d", midnightCorrectedLocalHour, midnightCorrectedClosingHour);
 			PublishQueuePosix::instance().publish("Time Variables", lastReportData, PRIVATE | WITH_ACK);
 
 			Take_Measurements::instance().takeMeasurements();                 // Take Measurements here for reporting
 
 			Particle_Functions::instance().sendEvent();                       // Publish hourly but not at opening time as there is nothing to publish
 
-			if (midnightCorrectedClosingHour == localHour) {
+			if (midnightCorrectedClosingHour == midnightCorrectedLocalHour) { // If we are closed now, let's clean up the data
 				dailyCleanup();
 				Log.info("Day is over - Resetting everything");
 			}
