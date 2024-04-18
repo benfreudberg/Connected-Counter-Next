@@ -4,7 +4,7 @@
 #include "device_pinout.h"
 #include "MyPersistentData.h"
 #include "math.h"
-#include "Take_Measurements.h"
+#include "take_measurements.h"
 
 FuelGauge fuelGauge;                                             // Needed to address issue with updates in low battery state
 
