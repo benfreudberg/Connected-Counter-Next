@@ -1,6 +1,6 @@
 #include "Particle.h"
 #include "device_pinout.h"
-#include "Take_Measurements.h"
+#include "take_measurements.h"
 #include "MyPersistentData.h"
 #include "Asset_Communicator.h"
 #include "Particle_Functions.h"
@@ -179,7 +179,7 @@ int Particle_Functions::jsonFunctionParser(String command) {
     }
 
     else if (function == "close") {
-      // Format - function - close, node - 0, variables - 13-24 open hour
+      // Format - function - close, node - 0, variables - 13-24 closing hour
       // Test - {"cmd":[{"var":"21","fn":"close"}]}
       int tempValue = strtol(variable,&pEND,10);                       // Looks for the first integer and interprets it
       if ((tempValue >= 13 ) && (tempValue <= 24)) {
@@ -313,6 +313,8 @@ void Particle_Functions::sendEvent() {
   PublishQueuePosix::instance().publish("Update-Device", nullptr, PRIVATE | WITH_ACK);  // Tell the UpdateDevice UbiFunction to update this device if any updates are available in SQS.
 
   Log.info("Ubidots Webhook: %s", data);                              // For monitoring via serial
+
+  sysStatus.set_lastReport(Time.now());                               // Set the last report on a report, instead of in the main loop
   current.set_alertCode(0);                                           // Reset the alert after publish
   current.set_hourlyCount(0);                                         // Reset the hourly count after publish
 }

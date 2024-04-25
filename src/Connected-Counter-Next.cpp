@@ -25,7 +25,8 @@
 // v1.4.2 - Fixed bug where SCPI queries falsely triggered altomatic updates added in v1.4.1
 // v1.5 - Added the Serial1_Listener and Asset_Communicator classes and fully implemented all Serial1 related functionality including Particle Functions. Added Slack notification for invalid commands.
 // v1.5.1 - Fixed bugs relating to improper messages sent via the serialAssetCommand particle function. Implemented a safe delay in Serial1_Listener that ensures the sensor has time to print to Serial1
-// v.1.5.2 - Tried adding a litte more information on the daily reset issue.
+// v1.5.2 - Tried adding a litte more information on the daily reset issue.
+// v1.5.3 - Fixed bugs relating to time functions - Reporting state conditionals now compare to local time. Fixed edge case where closeTime = 24 was causing issues with the final report of the night coming in at 1am.
 
 // Particle Libraries
 #include "Particle.h"                                 // Because it is a CPP file not INO
@@ -34,7 +35,7 @@
 #include "AB1805_RK.h"                                // Real Time Clock -and watchdog
 // Application Libraries / Class Files
 #include "device_pinout.h"							  // Define pinouts and initialize them
-#include "Take_Measurements.h"						  // Manages interactions with the sensors (default is temp for charging)
+#include "take_measurements.h"						  // Manages interactions with the sensors (default is temp for charging)
 #include "MyPersistentData.h"						  // Persistent Storage
 #include "Particle_Functions.h"						  // Where we put all the functions specific to Particle
 #include "Alert_Handling.h"
@@ -151,7 +152,7 @@ void setup() {
 	}
 	else {
 		Log.info("LocalTime initialized, time is %s and RTC %s set", conv.format("%I:%M:%S%p").c_str(), (ab1805.isRTCSet()) ? "is" : "is not");
-		if (Time.day(sysStatus.get_lastConnection()) != Time.day()) {
+		if (Time.day(sysStatus.get_lastReport()) != Time.day()) {
 			Log.info("New day, resetting counts");
 			dailyCleanup();
 		}
@@ -231,13 +232,26 @@ void loop() {
 
 		case REPORTING_STATE: {
 			if (state != oldState) publishStateTransition();
-			sysStatus.set_lastReport(Time.now());                             // We are only going to report once each hour from the IDLE state.  We may or may not connect to Particle
+
+			uint8_t localMinute = conv.getLocalTimeHMS().minute;													// If this minute is 59 (happens often), we will raise the hour by 1
+			uint8_t localHour = localMinute == 59 ? conv.getLocalTimeHMS().hour + 1 : conv.getLocalTimeHMS().hour;	// All conditionals will use this hour
+
+			uint8_t midnightCorrectedLocalHour = localHour == 24 ? 0 : localHour;									// Hour 24 is never *actually* reached
+			uint8_t midnightCorrectedClosingHour = sysStatus.get_closeTime() == 24 ? 0 : sysStatus.get_closeTime();	// Hour 24 is never *actually* reached
+
+			char lastReportData[128];
+			snprintf(lastReportData, sizeof(lastReportData),"midnightCorrectedLocalHour = %d midnightCorrectedClosingHour = %d", midnightCorrectedLocalHour, midnightCorrectedClosingHour);
+			PublishQueuePosix::instance().publish("Time Variables", lastReportData, PRIVATE | WITH_ACK);
+
 			Take_Measurements::instance().takeMeasurements();                 // Take Measurements here for reporting
-			if (Time.day(sysStatus.get_lastConnection()) != conv.getLocalTimeYMD().getDay()) {
-				dailyCleanup();
-				Log.info("New Day - Resetting everything");
-			}
+
 			Particle_Functions::instance().sendEvent();                       // Publish hourly but not at opening time as there is nothing to publish
+
+			if (midnightCorrectedClosingHour == midnightCorrectedLocalHour) { // If we are closed now, let's clean up the data
+				dailyCleanup();
+				Log.info("Day is over - Resetting everything");
+			}
+						
 			state = CONNECTING_STATE;                                         // Default behaviour would be to connect and send report to Ubidots
 
 			// Let's see if we need to connect 
@@ -430,7 +444,7 @@ bool isParkOpen(bool verbose) {
 	if (verbose) {
 	  Log.info("Local hour is %i and the park is %s", conv.getLocalTimeHMS().hour, (conv.getLocalTimeHMS().hour < sysStatus.get_openTime() || conv.getLocalTimeHMS().hour > sysStatus.get_closeTime()) ? "closed" : "open");
 	}
-	if (conv.getLocalTimeHMS().hour < sysStatus.get_openTime() || conv.getLocalTimeHMS().hour > sysStatus.get_closeTime()) return false;
+	if (conv.getLocalTimeHMS().hour < sysStatus.get_openTime() || conv.getLocalTimeHMS().hour > sysStatus.get_closeTime()) return false; 	// this never evaluates to true when closeTime = 24, which is good
 	else return true;
 }
 
