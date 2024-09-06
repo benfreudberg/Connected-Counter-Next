@@ -16,11 +16,11 @@
  * D17 - A2 -                         
  * D16 - A3 -               
  * D15 - A4 -               
- * D14 - A5 / SPI SS -      NC
+ * D14 - A5 / SPI SS -      Reset Pin
  * D13 - SCK - SPI Clock    Interrupt Pin
  * D12 - MO - SPI MOSI      Enable pin - bring low to enable the module
  * D11 - MI - SPI MISO      DTR pin to enable serial programming
- * D10 - UART RX -          Serial to Magnetometer
+ * D10 - UART RX -          Serial to Sensor Hub
  * D9 - UART TX -           ""
 
  Right Size (12 pins)
@@ -45,9 +45,14 @@ const pin_t BLUE_LED          = D7;
 const pin_t WAKEUP_PIN        = D8;
 
 // Sensor specific Pins
-extern const pin_t INT_PIN =  D13;                              // for Magnetometer
-extern const pin_t ENABLE_PIN = D12;                            // Bring low to enable the module
-const pin_t DTR_PIN = D11;                                      // Not used for this sketch
+// ben - moved motion sensor to "Analog" connector (J5) so that "SPI Bus" (J6) can be used for sensor hub
+const pin_t INT_PIN = A1;                                // interrupt for PIR motion sensor
+const pin_t ENABLE_PIN = A2;                             // Bring low to enable the PIR motion sensor
+
+const pin_t SENSOR_HUB_RESET_PIN = D14;                  // Bring low to reset the Sensor Hub (not used with Sensor Hub v0, maybe later versions will use it)
+const pin_t SENSOR_HUB_INT_PIN = D13;                    // interrupt for Sensor Hub (not used with data collection sensor hub firmware)
+const pin_t SENSOR_HUB_ENABLE_PIN = D12;                 // Bring low to power the Sensor Hub
+const pin_t SENSOR_HUB_DTR_PIN = D11;                    // Sensor Hub STM32 BOOT0 for coprocessor OTA updates
 
 bool initializePinModes() {
     Log.info("Initalizing the pinModes");
@@ -55,12 +60,19 @@ bool initializePinModes() {
     pinMode(BUTTON_PIN,INPUT);                                  // User button on the carrier board - active LOW
     pinMode(WAKEUP_PIN,INPUT);                                  // This pin is active HIGH
     pinMode(BLUE_LED,OUTPUT);                                   // On the Boron itself
-    pinMode(INT_PIN, INPUT);                                    // Interrupt pin for the Magnetometer
-    pinMode(ENABLE_PIN,OUTPUT);                                 // Bring low to enable the module
+    pinMode(INT_PIN, INPUT);                                    // Interrupt pin for the motion sensor
+    pinMode(ENABLE_PIN,OUTPUT);                                 // Bring low to enable the motion sensor
     pinSetDriveStrength(ENABLE_PIN, DriveStrength::HIGH);       // Set the drive strength to high to drive the FET
-    digitalWrite(ENABLE_PIN, LOW);					            // Turns on the module
-    pinMode(DTR_PIN,OUTPUT);                                    // Not used for this sketch
-    digitalWrite(DTR_PIN, LOW);                                 // Not used for this sketch
+    digitalWrite(ENABLE_PIN, LOW);					            // Turns on the motion sensor
+
+    pinMode(SENSOR_HUB_RESET_PIN, OUTPUT_OPEN_DRAIN);                      // The chip pulls this pin down when it is powered off. Open drain setting prevents power waste
+    digitalWrite(SENSOR_HUB_RESET_PIN, HIGH);                              // RESET high so that Sensor Hub STM32 does not reset by default
+    pinMode(SENSOR_HUB_INT_PIN, INPUT);                                    // Interrupt pin for the sensor hub
+    pinMode(SENSOR_HUB_ENABLE_PIN, OUTPUT);                                // Bring low to enable the sensor hub
+    pinSetDriveStrength(SENSOR_HUB_ENABLE_PIN, DriveStrength::HIGH);       // Set the drive strength to high to drive the FET
+    digitalWrite(SENSOR_HUB_ENABLE_PIN, HIGH);					           // Turns off the sensor hub
+    pinMode(SENSOR_HUB_DTR_PIN, OUTPUT);                                   // 
+    digitalWrite(SENSOR_HUB_DTR_PIN, LOW);                                 // BOOT0 low so that Sensor Hub STM32 does not enter bootloader by default
     return true;
 }
 

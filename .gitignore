@@ -6,6 +6,7 @@ src/Visitation-Counters.cpp
 
 # Particle Compiled Binanries
 target/
+*.zip
 
 # Prerequisites
 *.d

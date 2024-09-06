@@ -19,7 +19,10 @@ extern const pin_t INTERNAL_TEMP_PIN;
 // Specific to the sensor
 extern const pin_t INT_PIN;
 extern const pin_t ENABLE_PIN;
-extern const pin_t DTR_PIN;
+extern const pin_t SENSOR_HUB_RESET_PIN;
+extern const pin_t SENSOR_HUB_INT_PIN;
+extern const pin_t SENSOR_HUB_ENABLE_PIN;
+extern const pin_t SENSOR_HUB_DTR_PIN;
 
 bool initializePinModes();
 bool initializePowerCfg();

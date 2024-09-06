@@ -77,7 +77,8 @@ volatile bool userSwitchDectected = false;
 volatile bool sensorDetect = false;					  // Flag for sensor interrupt
 bool dataInFlight = false;                            // Flag for whether we are waiting for a response from the webhook
 
-Timer countSignalTimer(1000, countSignalTimerISR, true);      // This is how we will ensure the BlueLED stays on long enough for folks to see it.
+// ben - changed to 5000 to keep the sensor hub powered
+Timer countSignalTimer(5000, countSignalTimerISR, true);      // This is how we will ensure the BlueLED stays on long enough for folks to see it.
 
 // Timing variables
 const int wakeBoundary = 1*3600 + 0*60 + 0;           // Sets a reporting frequency of 1 hour 0 minutes 0 seconds
@@ -392,6 +393,7 @@ void loop() {
 		if (Record_Counts::instance().recordCounts()) {
 			Log.info("Count recorded");
 			pinSetFast(BLUE_LED);                       // Turn on the blue LED
+			pinResetFast(SENSOR_HUB_ENABLE_PIN);		// Turn on the sensor hub
 			countSignalTimer.reset();					// Keeps the LED light on so we can see it
 		}
 		else Log.info("Count not recorded");
@@ -437,6 +439,7 @@ void sensorISR() {
 
 void countSignalTimerISR() {
   digitalWrite(BLUE_LED,LOW);
+  digitalWrite(SENSOR_HUB_ENABLE_PIN, HIGH); 						// turn off the senor hub
 }
 
 bool isParkOpen(bool verbose) {
