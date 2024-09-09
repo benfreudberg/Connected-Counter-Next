@@ -50,7 +50,9 @@ PRODUCT_VERSION(1);									  // For now, we are putting nodes and gateways in t
 void publishStateTransition(void);                    // Keeps track of state machine changes - for debugging
 void userSwitchISR();                                 // interrupt service routime for the user switch
 void sensorISR(); 
+void sensorHubISR(); 
 void countSignalTimerISR();							  // Keeps the Blue LED on
+void countSensorHubTimerISR();						  // Failsafe power down of sensor hub
 void UbidotsHandler(const char *event, const char *data);
 bool isParkOpen(bool verbose);						  // Simple function returns whether park is open or not
 void dailyCleanup();								  // Reset each morning
@@ -77,8 +79,9 @@ volatile bool userSwitchDectected = false;
 volatile bool sensorDetect = false;					  // Flag for sensor interrupt
 bool dataInFlight = false;                            // Flag for whether we are waiting for a response from the webhook
 
-// ben - changed to 5000 to keep the sensor hub powered
-Timer countSignalTimer(5000, countSignalTimerISR, true);      // This is how we will ensure the BlueLED stays on long enough for folks to see it.
+// Timers activated by a count
+Timer countSignalTimer(1000, countSignalTimerISR, true);       // This is how we will ensure the BlueLED stays on long enough for folks to see it.
+Timer countSensorHubTimer(6000, countSensorHubTimerISR, true); // Failsafe timeout to turn off the sensor hub if no response comes from it.
 
 // Timing variables
 const int wakeBoundary = 1*3600 + 0*60 + 0;           // Sets a reporting frequency of 1 hour 0 minutes 0 seconds
@@ -159,8 +162,9 @@ void setup() {
 		}
 	} 
 
-	attachInterrupt(BUTTON_PIN,userSwitchISR,FALLING);// We may need to monitor the user switch to change behaviours / modes
-	attachInterrupt(INT_PIN,sensorISR,RISING);        // We need to monitor the sensor for activity
+	attachInterrupt(BUTTON_PIN, userSwitchISR, FALLING);			// We may need to monitor the user switch to change behaviours / modes
+	attachInterrupt(INT_PIN, sensorISR, RISING);        			// We need to monitor the sensor for activity
+	attachInterrupt(SENSOR_HUB_INT_PIN, sensorHubISR, RISING);		// The sensor hub lets us know when it is done and can be powered off
 
 	if (state == INITIALIZATION_STATE) {
 		if(sysStatus.get_lowPowerMode()) {
@@ -192,7 +196,7 @@ void loop() {
 
 		case SLEEPING_STATE: {
 			if (state != oldState) publishStateTransition();              	// We will apply the back-offs before sending to ERROR state - so if we are here we will take action
-	    	if (sensorDetect || countSignalTimer.isActive())  break;        // Don't nap until we are done with event - exits back to main loop but stays in napping state
+	    	if (sensorDetect || countSignalTimer.isActive() || countSensorHubTimer.isActive())  break;        // Don't nap until we are done with event - exits back to main loop but stays in napping state
 			if (Particle.connected() || !Cellular.isOff()) {
 				if (!Particle_Functions::instance().disconnectFromParticle()) {         // Disconnect cleanly from Particle and power down the modem
 					current.set_alertCode(15);
@@ -395,6 +399,7 @@ void loop() {
 			pinSetFast(BLUE_LED);                       // Turn on the blue LED
 			pinResetFast(SENSOR_HUB_ENABLE_PIN);		// Turn on the sensor hub
 			countSignalTimer.reset();					// Keeps the LED light on so we can see it
+			countSensorHubTimer.reset();				// Start the failsafe timer to turn off the sensor hub
 		}
 		else Log.info("Count not recorded");
 	}		
@@ -437,9 +442,17 @@ void sensorISR() {
 	sensorDetect = true;											// Set the flag for the sensor interrupt
 }
 
+void sensorHubISR() {
+	digitalWrite(SENSOR_HUB_ENABLE_PIN, HIGH); 						// turn off the sensor hub
+	countSensorHubTimer.stop();										// stop the sensor hub failsafe timer
+}
+
 void countSignalTimerISR() {
-  digitalWrite(BLUE_LED,LOW);
-  digitalWrite(SENSOR_HUB_ENABLE_PIN, HIGH); 						// turn off the senor hub
+  digitalWrite(BLUE_LED, LOW);
+}
+
+void countSensorHubTimerISR() {
+  digitalWrite(SENSOR_HUB_ENABLE_PIN, HIGH); 						// turn off the sensor hub
 }
 
 bool isParkOpen(bool verbose) {

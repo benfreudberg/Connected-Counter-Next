@@ -50,7 +50,7 @@ const pin_t INT_PIN = A1;                                // interrupt for PIR mo
 const pin_t ENABLE_PIN = A2;                             // Bring low to enable the PIR motion sensor
 
 const pin_t SENSOR_HUB_RESET_PIN = D14;                  // Bring low to reset the Sensor Hub (not used with Sensor Hub v0, maybe later versions will use it)
-const pin_t SENSOR_HUB_INT_PIN = D13;                    // interrupt for Sensor Hub (not used with data collection sensor hub firmware)
+const pin_t SENSOR_HUB_INT_PIN = D13;                    // interrupt for Sensor Hub to tell us we can turn off the Sensor Hub power
 const pin_t SENSOR_HUB_ENABLE_PIN = D12;                 // Bring low to power the Sensor Hub
 const pin_t SENSOR_HUB_DTR_PIN = D11;                    // Sensor Hub STM32 BOOT0 for coprocessor OTA updates
 
